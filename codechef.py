@@ -11,6 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver import ActionChains
 
 # from selenium.webdriver.common.by import By
 # from selenium.webdriver.common.keys import Keys
@@ -25,15 +26,13 @@ warnings.filterwarnings('ignore')
 options = Options()
 user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 options.add_argument('user-agent=' + user_agent)
-options.add_argument("headless")
-# options.add_argument('--window-size= x, y')
+# options.add_argument("headless")
 options.add_argument('--window-size=1920, 1080')
 options.add_argument('--no-sandbox')
-# options.add_argument("--single-process")
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument('--start-maximized')
-options.add_argument('--start-fullscreen')
-# options.add_argument('--disable-blink-features=AutomationControlled')
+# options.add_argument('--start-fullscreen')
+options.add_argument('--disable-blink-features=AutomationControlled')
 
 # Save log
 logger = logging.getLogger()
@@ -57,120 +56,121 @@ class CodeChefCrawler:
         self.save_path = save_path
         
     def set_language(self, language):
-        language = "".join([word.upper() for word in language if word.strip()])
-        if language in ['LANGUAGE', 'ALL']:
-            self.language = 'All'
-        elif language in ['C++17', 'C++']:
-            self.language = '63'
-        elif language in ['PYTH3.6', 'PY3', 'PY36', 'PYTHON3', 'PYTH3']:
-            self.language = '116'
-        elif language == 'JAVA':
-            self.language = '10'
-        elif language == 'C':
-            self.language = '11'
-        elif language == 'C++14':
-            self.language = '44'
-        elif language in ['PYTH', 'PY27', 'PY2', 'PYTHON']:
-            self.language = '4'
-        elif language == 'PYPY3':
-            self.language = '109'
-        elif language == 'C#':
-            self.language = '27'
-        elif language == 'ADA':
-            self.language = '7'
-        elif language == 'PYPY':
-            self.language = '99'
-        elif language == 'TEXT':
-            self.language = '62'
-        elif language == 'PASFPC':
-            self.language = '22'
-        elif language == 'NODEJS':
-            self.language = '56'
-        elif language == 'RUBY':
-            self.language = '17'
-        elif language == 'PHP':
-            self.language = '29'
-        elif language == 'GO':
-            self.language = '114'
-        elif language == 'HASK':
-            self.language = '21'
-        elif language == 'TCL':
-            self.language = '38'
-        elif language == 'KTLN':
-            self.language = '47'
-        elif language == 'PERL':
-            self.language = '3'
-        elif language == 'SCALA':
-            self.language = '39'
-        elif language == 'LUA':
-            self.language = '26'
-        elif language == 'BASH':
-            self.language = '28'
-        elif language == 'JS':
-            self.language = '35'
-        elif language == 'RUST':
-            self.language = '93'
-        elif language == 'LISPSBCL':
-            self.language = '31'
-        elif language == 'PASGPC':
-            self.language = '2'
-        elif language == 'BF':
-            self.language = '12'
-        elif language == 'CLOJ':
-            self.language = '111'
-        elif language == 'R':
-            self.language = '117'
-        elif language == 'D':
-            self.language = '20'
-        elif language == 'CAML':
-            self.language = '8'
-        elif language == 'SWIFT':
-            self.language = '85'
-        elif language == 'FORT':
-            self.language = '5'
-        elif language == 'ASM':
-            self.language = '13'
-        elif language == 'F#':
-            self.language = '124'
-        elif language == 'WSPC':
-            self.language = '6'
-        elif language == 'LISPCLISP':
-            self.language = '32'
-        elif language == 'SQL':
-            self.language = '40'
-        elif language == 'SCMGUILE':
-            self.language = '33'
-        elif language == 'PERL6':
-            self.language = '54'
-        elif language == 'ERL':
-            self.language = '36'
-        elif language == 'CLPS':
-            self.language = '14'
-        elif language == 'PRLG':
-            self.language = '15'
-        elif language == 'SQLQ':
-            self.language = '52'
-        elif language == 'ICK':
-            self.language = '9'
-        elif language == 'NICE':
-            self.language = '25'
-        elif language == 'ICON':
-            self.language = '16'
-        elif language == 'COB':
-            self.language = '118'
-        elif language == 'SCMCHICKEN':
-            self.language = '97'
-        elif language == 'PIKE':
-            self.language = '19'
-        elif language == 'SCMQOBI':
-            self.language = '18'
-        elif language == 'ST':
-            self.language = '23'
-        elif language == 'NEM':
-            self.language = '30'
-        else:
-            print("NO Exisiting Language.\nPlease Check Possible Language in CodeChef Language index.")
-            exit(0)
+        self.language = language
+        # language = "".join([word.upper() for word in language if word.strip()])
+        # if language in ['LANGUAGE', 'ALL']:
+        #     self.language = 'All'
+        # elif language in ['C++17', 'C++']:
+        #     self.language = '63'
+        # elif language in ['PYTH3.6', 'PY3', 'PY36', 'PYTHON3', 'PYTH3']:
+        #     self.language = '116'
+        # elif language == 'JAVA':
+        #     self.language = '10'
+        # elif language == 'C':
+        #     self.language = '11'
+        # elif language == 'C++14':
+        #     self.language = '44'
+        # elif language in ['PYTH', 'PY27', 'PY2', 'PYTHON']:
+        #     self.language = '4'
+        # elif language == 'PYPY3':
+        #     self.language = '109'
+        # elif language == 'C#':
+        #     self.language = '27'
+        # elif language == 'ADA':
+        #     self.language = '7'
+        # elif language == 'PYPY':
+        #     self.language = '99'
+        # elif language == 'TEXT':
+        #     self.language = '62'
+        # elif language == 'PASFPC':
+        #     self.language = '22'
+        # elif language == 'NODEJS':
+        #     self.language = '56'
+        # elif language == 'RUBY':
+        #     self.language = '17'
+        # elif language == 'PHP':
+        #     self.language = '29'
+        # elif language == 'GO':
+        #     self.language = '114'
+        # elif language == 'HASK':
+        #     self.language = '21'
+        # elif language == 'TCL':
+        #     self.language = '38'
+        # elif language == 'KTLN':
+        #     self.language = '47'
+        # elif language == 'PERL':
+        #     self.language = '3'
+        # elif language == 'SCALA':
+        #     self.language = '39'
+        # elif language == 'LUA':
+        #     self.language = '26'
+        # elif language == 'BASH':
+        #     self.language = '28'
+        # elif language == 'JS':
+        #     self.language = '35'
+        # elif language == 'RUST':
+        #     self.language = '93'
+        # elif language == 'LISPSBCL':
+        #     self.language = '31'
+        # elif language == 'PASGPC':
+        #     self.language = '2'
+        # elif language == 'BF':
+        #     self.language = '12'
+        # elif language == 'CLOJ':
+        #     self.language = '111'
+        # elif language == 'R':
+        #     self.language = '117'
+        # elif language == 'D':
+        #     self.language = '20'
+        # elif language == 'CAML':
+        #     self.language = '8'
+        # elif language == 'SWIFT':
+        #     self.language = '85'
+        # elif language == 'FORT':
+        #     self.language = '5'
+        # elif language == 'ASM':
+        #     self.language = '13'
+        # elif language == 'F#':
+        #     self.language = '124'
+        # elif language == 'WSPC':
+        #     self.language = '6'
+        # elif language == 'LISPCLISP':
+        #     self.language = '32'
+        # elif language == 'SQL':
+        #     self.language = '40'
+        # elif language == 'SCMGUILE':
+        #     self.language = '33'
+        # elif language == 'PERL6':
+        #     self.language = '54'
+        # elif language == 'ERL':
+        #     self.language = '36'
+        # elif language == 'CLPS':
+        #     self.language = '14'
+        # elif language == 'PRLG':
+        #     self.language = '15'
+        # elif language == 'SQLQ':
+        #     self.language = '52'
+        # elif language == 'ICK':
+        #     self.language = '9'
+        # elif language == 'NICE':
+        #     self.language = '25'
+        # elif language == 'ICON':
+        #     self.language = '16'
+        # elif language == 'COB':
+        #     self.language = '118'
+        # elif language == 'SCMCHICKEN':
+        #     self.language = '97'
+        # elif language == 'PIKE':
+        #     self.language = '19'
+        # elif language == 'SCMQOBI':
+        #     self.language = '18'
+        # elif language == 'ST':
+        #     self.language = '23'
+        # elif language == 'NEM':
+        #     self.language = '30'
+        # else:
+        #     print("NO Exisiting Language.\nPlease Check Possible Language in CodeChef Language index.")
+        #     exit(0)
     
     def get_extension(self, language):
         language = "".join([word.upper() for word in language if word.strip()])
@@ -236,26 +236,27 @@ class CodeChefCrawler:
         return extension
 
     def set_status(self, status):
-        status = "".join([word.upper() for word in status if word.strip()])
-        if status in ["STATUS", "ALL"]:
-            self.status = "All"
-        elif status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
-            self.status = "FullAC"
-        elif status in ["AC(PARTIAL)", "PAC"]:
-            self.status = "PartialAC"
-        elif status in ["WA", "WRONG", "WRONGANSWER"]:
-            self.status = "14"
-        elif status in ["TLE", "TIME", "TIMEOUT", "LIMIT", "EXCEEDED", "TIMELIMITEXCEEDED"]:
-            self.status = "13"
-        elif status in ["RTE", "RUN", "RUNTIME", "RUNTIMEERROR"]:
-            self.status = "12"
-        elif status in ["CTE", "COMPILE", "COMPILATION", "ERROR", "COMPILATIONERROR"]:
-            self.status = "11"
-        elif status == "IE":
-            self.status = "20"
-        else:
-            print("NO Exisiting Status.\nPlease Check Possible Status in CodeChef Status index.")
-            exit(0)
+        self.status = status
+        # status = "".join([word.upper() for word in status if word.strip()])
+        # if status in ["STATUS", "ALL"]:
+        #     self.status = "All"
+        # elif status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
+        #     self.status = "FullAC"
+        # elif status in ["AC(PARTIAL)", "PAC"]:
+        #     self.status = "PartialAC"
+        # elif status in ["WA", "WRONG", "WRONGANSWER"]:
+        #     self.status = "14"
+        # elif status in ["TLE", "TIME", "TIMEOUT", "LIMIT", "EXCEEDED", "TIMELIMITEXCEEDED"]:
+        #     self.status = "13"
+        # elif status in ["RTE", "RUN", "RUNTIME", "RUNTIMEERROR"]:
+        #     self.status = "12"
+        # elif status in ["CTE", "COMPILE", "COMPILATION", "ERROR", "COMPILATIONERROR"]:
+        #     self.status = "11"
+        # elif status == "IE":
+        #     self.status = "20"
+        # else:
+        #     print("NO Exisiting Status.\nPlease Check Possible Status in CodeChef Status index.")
+        #     exit(0)
 
     def get_status(self, status):
         status = "".join([word.upper() for word in status if word.strip()])
@@ -464,37 +465,41 @@ class CodeChefCrawler:
 
         url_a = self.status_url + project + "?"
         url_b = "sort_by=All&sorting_order=asc&language="+self.language+"&status="+self.status+"&handle=&Submit=GO"
-
-        # Get Last Page
+        
+        driver.get(url_a + url_b)
+        # print(url_a + url_b)
         try:
-            driver.get(self.status_url + project)
-            # Select Language
-            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="Language"]')))
-            select_lan = Select(driver.find_element_by_xpath('//*[@id="Language"]'))
-            select_lan.select_by_value(self.language)
-            # Select Result
-            select_res = Select(driver.find_element_by_xpath('//*[@id="Status"]'))
-            select_res.select_by_value(self.status)
-            # GO
-            self.__wait_and_click(driver, '//*[@id="filter"]/table/tbody/tr/td[5]/input')
-            # Get Last Page
             time.sleep(1)
-            pages = driver.find_element_by_class_name('pageinfo').text
+            tag = self.__wait_until_find(driver, '//*[@id="root"]/div/div[3]/div/div/div[4]/table/tfoot/tr/td/div/div[1]/div/div')
+        
+            action = ActionChains(driver)
+            action.move_to_element(tag).perform()
+            
+            rows_per_page = int(self.__wait_until_find(driver, '//*[@id="pagination-rows"]').text)
+            entire_num = int(self.__wait_until_find(driver, '//*[@id="root"]/div/div[3]/div/div/div[4]/table/tfoot/tr/td/div/div[2]/div/p[2]').text.split("of")[1])
         except:
-            pages = "1 of 1"
+            print("Fail submission list")
 
-        last_page = pages.split('of')[1].strip()
+        # pages = select_page.find_elements(By.XPATH, './child::*')
+
+        last_page = entire_num // rows_per_page if entire_num %rows_per_page == 0 else entire_num // rows_per_page + 1
+        submission_url_list = ''
+        # print("Pages: " + str(last_page))
         
         # Get Solution View Url
         for no in tqdm(range(int(last_page)), desc='URL'):
             page_url = url_a + "page=" + str(no) + "&" + url_b
+            print(page_url)
             page = requests.get(page_url)
             soup = BeautifulSoup(page.text, "html.parser")
-            for solution in soup.find_all("td", "word-break-unset"):
+            # //*[@id="MUIDataTableBodyRow-0"]/td[8]/div/span
+            # //*[@id="MUIDataTableBodyRow-1"]/td[8]/div/span
+            for solution in soup.find_all("tbody", "MuiTableBody-root"):
                 solution_url = solution.find("a")["href"]
                 if solution_url[0] == '/':
                     solution_url = solution_url[1:]
                 submission_url_list.append(self.url+solution_url)
+                print("submission_url_list: " + self.url+solution_url)
         
         driver.quit()
 
@@ -612,8 +617,8 @@ class CodeChefCrawler:
 if __name__ == '__main__':
     compete = 'UAPRAC' # Default is 'None'
     project = 'ENODE_EASY'
-    language = 'PYTH3' # Default is 'Language'
-    status = 'ALL' # Default is 'ALL'
+    language = 'PYTH 3' # Default is 'Language'
+    status = '' # Default is 'ALL'
 
     save_path = 'codechefData/'
     
@@ -627,7 +632,7 @@ if __name__ == '__main__':
     # ccc.run(language, status)
 
     proj_list = ['ENODE_EASY', 'ENODE_HARD', 'PANSTACK', 'XOREQUAL', 'SHUTTLE', 'MUSICHAIR', 'MCHAIRS', 'CHEFLCM']
-    lang_list = ['PYPY3', 'PYTH3']
+    lang_list = ['PYPY3', 'PYTH 3']
     for project in proj_list:
         for language in lang_list:
             # Run Only One Project  
