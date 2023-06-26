@@ -340,7 +340,7 @@ class CodeChefCrawler:
             children = tags_list.find_elements(By.XPATH, "./child::*")
             for elem in children:
                 tags.append(elem.text)
-                print("Tag: " + elem.text)
+                # print("Tag: " + elem.text)
         except:
             print("Tags Fail")
         
@@ -352,9 +352,9 @@ class CodeChefCrawler:
         title_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[1]/h1' # feat
         
         try: 
-            time.sleep(0.02) # for prevent null
+            time.sleep(0.1) # for prevent null
             title = self.__wait_until_find(driver, title_xpath).text
-            print("Title: " + title)
+            # print("Title: " + title)
         except: 
             print("Title Fail")
             pass
@@ -366,27 +366,29 @@ class CodeChefCrawler:
         problem_xpath = '//*[@id="problem-statement"]'
         
         try: 
-            problem_statement = self.__wait_until_find(driver, problem_xpath).text
-            children = problem_statement.find_elements(By.XPATH, "./child::*")
-
-            for elem in children:
-                tag = elem.tag_name
-                text = elem.text
-                if tag in ['h2', 'h3']:
-                    if text != 'Problem':
-                        if not problem:
-                            continue
-                        break
-                else:
-                    problem += text
+            problem_statement = self.__wait_until_find(driver, problem_xpath)
+            # print("Problem Statement: " + problem_statement.text)
             
         except: 
             print("Problem Fail")
             pass
         
-        problem = problem.replace('\n', ' ')
+        children = problem_statement.find_elements(By.XPATH, './child::*')
 
-        return problem
+        for elem in children:
+            tag = elem.tag_name
+            text = elem.text
+            if tag in ['h2', 'h3']:
+                if text != 'Problem':
+                    if not problem:
+                        continue
+                    break
+            elif tag in ['li']:
+                problem += "\n - " + text.replace('\n', ' ')
+            else:
+                problem += text.replace('\n', ' ')
+
+        return problem.split(".")
 
     def get_testcase(self, driver):
         # change to problems?
