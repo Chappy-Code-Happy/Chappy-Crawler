@@ -46,14 +46,18 @@ class CodeForcesCrawler:
         failed_dict = {}
 
         submission_url = self.url + 'contest/' + project + '/submission/'
+        count = 0
 
         for id, verdict in tqdm(id_verdict_map.items()):
+            if count == 5:
+                break
             page_url = submission_url + str(id)
             page = requests.get(page_url)
             soup = BeautifulSoup(page.text, "html.parser")
             try:
                 code = soup.find('pre', {'id': 'program-source-text'}).text
                 submission_dict[id] = [verdict, code]
+                count += 1
             except:
                 failed_dict[id] = verdict
                 # logger.info(page_url)

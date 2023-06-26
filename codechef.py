@@ -5,18 +5,35 @@ import os
 import warnings
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.chrome.options import Options
+
+# from selenium.webdriver.common.by import By
+# from selenium.webdriver.common.keys import Keys
+# from selenium.webdriver.support.ui import Select, WebDriverWait
+# from selenium.webdriver.support import expected_conditions as EC
 from tqdm import tqdm
 import time
 import logging
 
 
 warnings.filterwarnings('ignore')
-options = webdriver.ChromeOptions()
+options = Options()
+user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+options.add_argument('user-agent=' + user_agent)
 options.add_argument("headless")
-options.add_argument('--disable-blink-features=AutomationControlled')
+# options.add_argument('--window-size= x, y')
+options.add_argument('--window-size=1920, 1080')
+options.add_argument('--no-sandbox')
+# options.add_argument("--single-process")
+options.add_argument("--disable-dev-shm-usage")
+options.add_argument('--start-maximized')
+options.add_argument('--start-fullscreen')
+# options.add_argument('--disable-blink-features=AutomationControlled')
 
 # Save log
 logger = logging.getLogger()
@@ -255,23 +272,22 @@ class CodeChefCrawler:
         self.problem_url = self.url + compete + '/problems/'
         self.status_url = self.url + compete + '/status/'
 
-
     def __wait_until_find(self, driver, xpath):
         WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, xpath)))
-        element = driver.find_element_by_xpath(xpath)
+        element = driver.find_element(By.XPATH, xpath)
         return element
             
     def __wait_and_click(self, driver, xpath):
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, xpath)))
-        button = driver.find_element_by_xpath(xpath)
+        button = driver.find_element(By.XPATH, xpath)
         driver.execute_script("arguments[0].click();", button)
-
 
     def get_project_list(self):
         # Get the project url of all problems
         project_list = []
 
-        driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         rows_per_page = 50
         url_a = self.practice_url + "?"
@@ -295,7 +311,7 @@ class CodeChefCrawler:
             
             for i in range(50):
                 codename_xpath = '//*[@id="MUIDataTableBodyRow-'+str(i)+'"]/td[1]/div[2]'
-                try: codename = driver.find_element_by_xpath(codename_xpath).text
+                try: codename = driver.find_element(By.XPATH, codename_xpath).text
                 except: break
                 project_list.append(codename)
         
@@ -303,61 +319,81 @@ class CodeChefCrawler:
         
         return project_list
 
-
     def get_tags(self, driver):
         tags = []
 
-        expand_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[1]/div[1]/div[3]'
+        # expand_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[1]/div[1]/div[3]' # exist
+        expand_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[4]' # feat
         self.__wait_and_click(driver, expand_xpath)
 
         # show_tags_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[2]/div/div[3]/div[2]/div/span[1]/span[1]/span[1]/input'
+        # show_tags_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[2]/div/div[2]/div/div' # error
         # self.__wait_and_click(driver, show_tags_xpath)
 
-        tags_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[2]/div/div[2]/div/div[2]'
-        tags_list = driver.find_element_by_xpath(tags_xpath)
+        # tags_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[2]/div/div[2]/div/div[2]'
+        tags_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[2]/div/div[2]/div/div[2]'
+        
+        try: 
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, tags_xpath)))
+            tags_list = driver.find_element(By.XPATH, tags_xpath)
             
-        children = tags_list.find_elements_by_xpath("./child::*")
-        for elem in children:
-            tags.append(elem.text)
+            children = tags_list.find_elements(By.XPATH, "./child::*")
+            for elem in children:
+                tags.append(elem.text)
+                print("Tag: " + elem.text)
+        except:
+            print("Tags Fail")
         
         return tags       
 
     def get_title(self, driver):
         title = ''
-        title_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[1]/div[1]/div[1]'
-        try: title = self.__wait_until_find(driver, title_xpath).text
-        except: pass
+        # title_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[1]/div[1]/div[1]' # exist
+        title_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[1]/h1' # feat
+        
+        try: 
+            time.sleep(0.02) # for prevent null
+            title = self.__wait_until_find(driver, title_xpath).text
+            print("Title: " + title)
+        except: 
+            print("Title Fail")
+            pass
 
         return title.strip()
 
     def get_problem(self, driver):
         problem = ""
-
         problem_xpath = '//*[@id="problem-statement"]'
-        problem_statement = self.__wait_until_find(driver, problem_xpath)
-        children = problem_statement.find_elements_by_xpath("./child::*")
+        
+        try: 
+            problem_statement = self.__wait_until_find(driver, problem_xpath).text
+            children = problem_statement.find_elements(By.XPATH, "./child::*")
 
-        for elem in children:
-            tag = elem.tag_name
-            text = elem.text
-            if tag in ['h2', 'h3']:
-                if text != 'Problem':
-                    if not problem:
-                        continue
-                    break
-            else:
-                problem += text
+            for elem in children:
+                tag = elem.tag_name
+                text = elem.text
+                if tag in ['h2', 'h3']:
+                    if text != 'Problem':
+                        if not problem:
+                            continue
+                        break
+                else:
+                    problem += text
+            
+        except: 
+            print("Problem Fail")
+            pass
         
         problem = problem.replace('\n', ' ')
 
         return problem
 
     def get_testcase(self, driver):
+        # change to problems?
         input_tc, output_tc = '', ''
 
         page_url = self.url + "problems-old/" + project
         driver.get(page_url)
-
         
         input_x_paths = ['//*[@id="sample-input-1"]',
                         '//*[@id="problem-statement"]/pre[1]',
@@ -387,13 +423,20 @@ class CodeChefCrawler:
         return input_tc, output_tc
 
     def get_project_info(self, project):
-        driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+
         page_url = self.problem_url + project
         driver.get(page_url)
+        print(page_url)
 
-        time.sleep(1)
+        time.sleep(3)
         title = self.get_title(driver)
         tags = self.get_tags(driver)
+        # tags = ''
+        # problem = ''
+        # input_tc=''
+        # output_tc=''
         problem = self.get_problem(driver)
         input_tc, output_tc = self.get_testcase(driver)
 
@@ -414,7 +457,8 @@ class CodeChefCrawler:
     def get_submission_url_list(self, project):
         submission_url_list = []
 
-        driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         url_a = self.status_url + project + "?"
         url_b = "sort_by=All&sorting_order=asc&language="+self.language+"&status="+self.status+"&handle=&Submit=GO"
@@ -457,7 +501,8 @@ class CodeChefCrawler:
     def get_submission_map(self, project):
         submission_map = {}
 
-        driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         submission_url_list = self.get_submission_url_list(project)
 
@@ -493,11 +538,11 @@ class CodeChefCrawler:
         
         return submission_map
 
-    def save_problem(self, project, problem, title, tags,):
+    def save_problem(self, project, problem, title, tags):
         # Save Problem
         dir_path = os.path.join(self.save_path, project)
         file_path = dir_path+"/problem.txt"
-        describtion = 'Title: %s\nProblem\n%s\nTags:%s' %(title, problem, tags) 
+        describtion = 'Title: %s\nProblem:\n%s\nTags:%s' %(title, problem, tags) 
         self.save(dir_path, file_path, describtion)
 
     def save_testcase(self, project, input_tc, output_tc):
@@ -568,7 +613,7 @@ if __name__ == '__main__':
     language = 'PYTH3' # Default is 'Language'
     status = 'ALL' # Default is 'ALL'
 
-    save_path = 'data/'
+    save_path = 'codechefData/'
     
     # Run CodeChefCrawler with save_path
     ccc = CodeChefCrawler(save_path)
