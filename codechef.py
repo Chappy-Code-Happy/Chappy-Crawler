@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import time
 import os
 import warnings
+from tqdm import tqdm
+import logging
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -12,9 +14,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import ActionChains
-from tqdm import tqdm
-import time
-import logging
 
 
 warnings.filterwarnings('ignore')
@@ -506,15 +505,15 @@ class CodeChefCrawler:
                     language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
                     extension = self.get_extension(language)
 
-                    id = solution_url.split('/')[-1]
+                    submissionId = solution_url.split('/')[-1]
 
                     plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
                     plaintext = requests.get(plaintext_url)
                     soup = BeautifulSoup(plaintext.text, "html.parser")
                     code = soup.find("pre").get_text()
 
-                    if status and id and username and code and extension:
-                        submission_map[id] = [status, username, code, extension]
+                    if status and submissionId and username and code and extension:
+                        submission_map[submissionId] = [status, username, code, extension]
                 except:
                     print("Submission Error")
                     break
@@ -539,7 +538,7 @@ class CodeChefCrawler:
         file_path = dir_path+"/output_001.txt"
         self.save(dir_path, file_path, output_tc)
     
-    def save_code(self, id, status, username, code, extension):
+    def save_code(self, submissionId, status, username, code, extension):
         # Save Code
         status = "".join([word.upper() for word in status if word.strip()])
         if status in ["AC"]:
@@ -549,7 +548,7 @@ class CodeChefCrawler:
         else:
             result = "error"
         dir_path = os.path.join(self.save_path, project, result)
-        file_path = dir_path+'/'+str(id)+'&'+status+'&'+str(username)+extension
+        file_path = dir_path+'/'+str(submissionId)+'&'+status+'&'+str(username)+extension
         self.save(dir_path, file_path, code)
     
     def save_datatime(self, project):
@@ -568,10 +567,9 @@ class CodeChefCrawler:
     def save_data(self, project, title, tags, problem, input_tc, output_tc, submission_map):
         self.save_problem(project, problem, title, tags)
         self.save_testcase(project, input_tc, output_tc)
-        for id, (status, username, code, extension) in tqdm(submission_map.items(), desc='Save'):
-            self.save_code(id, status, username, code, extension)
+        for submissionId, (status, username, code, extension) in tqdm(submission_map.items(), desc='Save'):
+            self.save_code(submissionId, status, username, code, extension)
         self.save_datatime(project)
-
 
     def run_one(self, project, language="LANGUAGE", status="STATUS"):
         logger.info('\n'+project)
