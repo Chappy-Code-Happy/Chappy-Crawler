@@ -12,11 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import ActionChains
-
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.common.keys import Keys
-# from selenium.webdriver.support.ui import Select, WebDriverWait
-# from selenium.webdriver.support import expected_conditions as EC
 from tqdm import tqdm
 import time
 import logging
@@ -26,12 +21,13 @@ warnings.filterwarnings('ignore')
 options = Options()
 user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 options.add_argument('user-agent=' + user_agent)
-# options.add_argument("headless")
+## for background
+options.add_argument("headless")
 options.add_argument('--window-size=1920, 1080')
 options.add_argument('--no-sandbox')
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument('--start-maximized')
-# options.add_argument('--start-fullscreen')
+options.add_argument('--start-fullscreen')
 options.add_argument('--disable-blink-features=AutomationControlled')
 
 # Save log
@@ -283,11 +279,11 @@ class CodeChefCrawler:
         button = driver.find_element(By.XPATH, xpath)
         driver.execute_script("arguments[0].click();", button)
 
+    ## NOT FEAT YET!! (old-version)
     def get_project_list(self):
         # Get the project url of all problems
         project_list = []
 
-        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         rows_per_page = 50
@@ -323,25 +319,21 @@ class CodeChefCrawler:
     def get_tags(self, driver):
         tags = []
 
-        # expand_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[1]/div[1]/div[3]' # exist
         expand_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[4]' # feat
         self.__wait_and_click(driver, expand_xpath)
-
-        # show_tags_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[2]/div/div[3]/div[2]/div/span[1]/span[1]/span[1]/input'
-        # show_tags_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[2]/div/div[2]/div/div' # error
+        
+        ## not necessory && error
+        # show_tags_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[2]/div/div[2]/div/div'
         # self.__wait_and_click(driver, show_tags_xpath)
 
-        # tags_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[2]/div/div[2]/div/div[2]'
         tags_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[2]/div/div[2]/div/div[2]'
         
         try: 
-            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, tags_xpath)))
-            tags_list = driver.find_element(By.XPATH, tags_xpath)
+            tags_list = self.__wait_until_find(driver, tags_xpath)
             
             children = tags_list.find_elements(By.XPATH, "./child::*")
             for elem in children:
                 tags.append(elem.text)
-                # print("Tag: " + elem.text)
         except:
             print("Tags Fail")
         
@@ -349,13 +341,11 @@ class CodeChefCrawler:
 
     def get_title(self, driver):
         title = ''
-        # title_xpath = '//*[@id="root"]/div/div[1]/div/div/div[1]/div[1]/div[1]/div[1]' # exist
-        title_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[1]/h1' # feat
+        title_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[1]/h1'
         
         try: 
             time.sleep(0.1) # for prevent null
             title = self.__wait_until_find(driver, title_xpath).text
-            # print("Title: " + title)
         except: 
             print("Title Fail")
             pass
@@ -368,7 +358,6 @@ class CodeChefCrawler:
         
         try: 
             problem_statement = self.__wait_until_find(driver, problem_xpath)
-            # print("Problem Statement: " + problem_statement.text)
             
         except: 
             print("Problem Fail")
@@ -391,8 +380,9 @@ class CodeChefCrawler:
 
         return problem.split(".")
 
+    ## old version
     def get_testcase(self, driver):
-        # change to problems?
+        # change to problems
         input_tc, output_tc = '', ''
 
         page_url = self.url + "problems-old/" + project
@@ -426,7 +416,6 @@ class CodeChefCrawler:
         return input_tc, output_tc
 
     def get_project_info(self, project):
-        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         page_url = self.problem_url + project
@@ -436,10 +425,6 @@ class CodeChefCrawler:
         time.sleep(3)
         title = self.get_title(driver)
         tags = self.get_tags(driver)
-        # tags = ''
-        # problem = ''
-        # input_tc=''
-        # output_tc=''
         problem = self.get_problem(driver)
         input_tc, output_tc = self.get_testcase(driver)
 
@@ -456,18 +441,15 @@ class CodeChefCrawler:
 
         return title, tags, problem, input_tc, output_tc
 
+    def get_submission_list(self, project):
 
-    def get_submission_url_list(self, project):
-        submission_url_list = []
-
-        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         url_a = self.status_url + project + "?"
         url_b = "sort_by=All&sorting_order=asc&language="+self.language+"&status="+self.status+"&handle=&Submit=GO"
         
         driver.get(url_a + url_b)
-        # print(url_a + url_b)
+        ## Get last page
         try:
             time.sleep(1)
             tag = self.__wait_until_find(driver, '//*[@id="root"]/div/div[3]/div/div/div[4]/table/tfoot/tr/td/div/div[1]/div/div')
@@ -480,69 +462,66 @@ class CodeChefCrawler:
         except:
             print("Fail submission list")
 
-        # pages = select_page.find_elements(By.XPATH, './child::*')
-
         last_page = entire_num // rows_per_page if entire_num %rows_per_page == 0 else entire_num // rows_per_page + 1
-        submission_url_list = ''
-        # print("Pages: " + str(last_page))
+        submission_map = {}
         
         # Get Solution View Url
-        for no in tqdm(range(int(last_page)), desc='URL'):
+        for no in tqdm(range(int(last_page)), desc='Submission'):
             page_url = url_a + "page=" + str(no) + "&" + url_b
-            print(page_url)
-            page = requests.get(page_url)
-            soup = BeautifulSoup(page.text, "html.parser")
-            # //*[@id="MUIDataTableBodyRow-0"]/td[8]/div/span
-            # //*[@id="MUIDataTableBodyRow-1"]/td[8]/div/span
-            for solution in soup.find_all("tbody", "MuiTableBody-root"):
-                solution_url = solution.find("a")["href"]
-                if solution_url[0] == '/':
-                    solution_url = solution_url[1:]
-                submission_url_list.append(self.url+solution_url)
-                print("submission_url_list: " + self.url+solution_url)
+            
+            driver.switch_to.window(driver.window_handles[0]) # for switch to exist page
+            driver.get(page_url)
+            time.sleep(1)
+            
+            for i in range(rows_per_page):
+                sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[8]/div/span'
+                
+                try:
+                    # Go to submission list page
+                    driver.switch_to.window(driver.window_handles[0])
+                    driver.get(driver.current_url)
+                    time.sleep(1)
+                    
+                    # Go to Submission code
+                    tag = self.__wait_until_find(driver, sub_xpath)
+                    action = ActionChains(driver)
+                    action.move_to_element(tag).perform() # scroll
+                    self.__wait_and_click(driver, sub_xpath)
+                    time.sleep(1)
+                    
+                    # Get status, username, code
+                    driver.switch_to.window(driver.window_handles[-1])
+                    solution_url = driver.current_url
+                    driver.get(solution_url)
+                    time.sleep(1)
+
+                    username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
+                    username = self.__wait_until_find(driver, username_xpath).text
+                    
+                    status_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[1]/div/span'
+                    status = self.__wait_until_find(driver, status_xpath).text
+                    status = self.get_status(status)
+
+                    language_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div/div/div/div[1]/div[1]'
+                    language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
+                    extension = self.get_extension(language)
+
+                    id = solution_url.split('/')[-1]
+
+                    plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
+                    plaintext = requests.get(plaintext_url)
+                    soup = BeautifulSoup(plaintext.text, "html.parser")
+                    code = soup.find("pre").get_text()
+
+                    if status and id and username and code and extension:
+                        submission_map[id] = [status, username, code, extension]
+                except:
+                    print("Submission Error")
+                    break
+                driver.close()
         
         driver.quit()
 
-        return submission_url_list
-
-    def get_submission_map(self, project):
-        submission_map = {}
-
-        # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-
-        submission_url_list = self.get_submission_url_list(project)
-
-        for solution_url in tqdm(submission_url_list, desc='Submit'):
-            try:
-                # Get Username & Id & Status & Code
-                driver.get(solution_url)
-                time.sleep(1)
-
-                username_path = '//*[@id="root"]/div/div[1]/div/div/div[2]/div[1]/div[3]/a'
-                username = self.__wait_until_find(driver, username_path).text
-                
-                status_path = '//*[@id="root"]/div/div[1]/div/div/div[2]/div[1]/div[4]/span[2]'
-                status = self.__wait_until_find(driver, status_path).text
-                status = self.get_status(status)
-
-                language_path = '//*[@id="root"]/div/div[1]/div/div/div[4]/div/div/div[1]/div'
-                language = self.__wait_until_find(driver, language_path).text.split('Language:')[-1].strip()
-                extension = self.get_extension(language)
-
-                id = solution_url.split('/')[-1]
-
-                plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
-                plaintext = requests.get(plaintext_url)
-                soup = BeautifulSoup(plaintext.text, "html.parser")
-                code = soup.find("pre").get_text()
-
-                if status and id and username and code and extension:
-                    submission_map[id] = [status, username, code, extension]
-            except: pass
-
-        driver.close()
-        
         return submission_map
 
     def save_problem(self, project, problem, title, tags):
@@ -600,7 +579,8 @@ class CodeChefCrawler:
         self.set_language(language)
         self.set_status(status)
         title, tags, problem, input_tc, output_tc = self.get_project_info(project)
-        submission_map = self.get_submission_map(project)
+        # submission_map = self.get_submission_map(project)
+        submission_map = self.get_submission_list(project)
         return title, tags, problem, input_tc, output_tc, submission_map
         
     def run(self, language="LANGUAGE", status="STATUS"):
