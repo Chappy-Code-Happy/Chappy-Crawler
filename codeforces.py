@@ -166,14 +166,22 @@ class CodeForcesCrawler:
         
         return submission_url_list
         
-    
     def get_submission_list(self, contest, submission_url_list):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         submission_list = {}
         
-        # submission_url = self.contest_url + contest + "/submission" + 
+        for sub_url in range(submission_url_list[contest]):
+            submission_url = self.contest_url + contest + "/submission/" + sub_url
+            
+            driver.get(submission_url)
+            time.sleep(3)
+            
+            ## Get status, username, code
+            username = self.get_username(driver)
+            
+            
+            
         
-        # driver.get()
         return submission_list
         # submission_dict = {}
         # failed_dict = {}

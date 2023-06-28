@@ -414,6 +414,50 @@ class CodeChefCrawler:
         
         return input_tc, output_tc
 
+    def get_username(self, driver):
+        username = ''
+        username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
+        try:
+            username = self.__wait_until_find(driver, username_xpath).text
+        except: 
+            print("Username Fail")
+            pass 
+        return username
+    
+    def get_status(self, driver):
+        status = ''
+        status_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[1]/div/span'
+        try:
+            status = self.__wait_until_find(driver, status_xpath).text
+            status = self.get_status(status)
+        except:
+            print("Status Fail")
+            pass 
+        return status
+    
+    def get_extension(self, driver):
+        extension = ''
+        language_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div/div/div/div[1]/div[1]'
+        try:
+            language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
+            extension = self.get_extension(language)
+        except:
+            print("Extension Fail")
+            pass 
+        return extension
+    
+    def get_code(self, solution_url):
+        try:
+            plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
+            plaintext = requests.get(plaintext_url)
+            soup = BeautifulSoup(plaintext.text, "html.parser")
+            code = soup.find("pre").get_text()
+        except:
+            print("Code Fail")
+            pass 
+
+        return code
+        
     def get_project_info(self, project):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
@@ -488,29 +532,18 @@ class CodeChefCrawler:
                     self.__wait_and_click(driver, sub_xpath)
                     time.sleep(1)
                     
-                    # Get status, username, code
+                    # Get status, username, code, extension
                     driver.switch_to.window(driver.window_handles[-1])
                     solution_url = driver.current_url
                     driver.get(solution_url)
                     time.sleep(1)
 
-                    username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
-                    username = self.__wait_until_find(driver, username_xpath).text
-                    
-                    status_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[1]/div/span'
-                    status = self.__wait_until_find(driver, status_xpath).text
-                    status = self.get_status(status)
-
-                    language_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div/div/div/div[1]/div[1]'
-                    language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
-                    extension = self.get_extension(language)
+                    username = self.get_username(driver)
+                    status = self.get_status(driver)
+                    extension = self.get_extension(driver)
+                    code = self.get_code(solution_url)
 
                     submissionId = solution_url.split('/')[-1]
-
-                    plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
-                    plaintext = requests.get(plaintext_url)
-                    soup = BeautifulSoup(plaintext.text, "html.parser")
-                    code = soup.find("pre").get_text()
 
                     if status and submissionId and username and code and extension:
                         submission_map[submissionId] = [status, username, code, extension]
