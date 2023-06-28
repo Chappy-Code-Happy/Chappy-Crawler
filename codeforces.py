@@ -42,10 +42,6 @@ class CodeForcesCrawler:
         self.url = "https://www.codeforces.com/"
         self.mirror_url = "https://mirror.codeforces.com/"
         self.contest_url = self.url + "contest/"
-        
-        self.problem_list = {}
-        self.submission_url_list = {}
-        self.submission_list = {}
 
         self.save_path = save_path
         
