@@ -103,6 +103,7 @@ class CodeForcesCrawler:
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         
         submission_url_list = {}
+        
         ## using miror_url -> because when click event occur, it rendering to 'mirror.codeforces.com'
         status_url = self.mirror_url + "contest/" + contest + '/status'
         driver.get(status_url)
@@ -133,36 +134,34 @@ class CodeForcesCrawler:
             
             for i in range(len(children)):
                 if i == len(children)-2:
-                    last_page = children[i].text
+                    last_page = int(children[i].text)
             
-            # last_page = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[8]/div/ul/li[9]/span/a')
-            print("last_page: " + last_page)
+            # print("last_page: " + str(last_page))
         except:
             print("Get Last Page Error")
 
-        try:
-            ## Get submission url
-            tmp_list = []
-            for j in range(1, last_page+1):
-                sub_url = status_url + '/page/' + str(j)
-                print(sub_url)
-                driver.get(sub_url)
-                time.wait(3)
+        ## Get submission url
+        tmp_list = []
+        for j in range(1, last_page+1): 
+            for i in range (2, 52):
+                try:
+                    url = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[' + str(i) + ']/td[1]/a')
+                    
+                    print("url: " + url.text)
+                    tmp_list.append(url.text)
+                except:
+                    print("url error")
+                    break
                 
-                # for i in range (2, 52):
-                #     try:
-                #         url = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[' + str(i) + ']')
-                #         action = ActionChains(driver)
-                #         action.move_to_element(tag).perform()
-                        
-                #         print("url: " + url.text)
-                #         tmp_list.append(url.text)
-                #     except:
-                #         break
-            
-        except:    
-            print("Submission Error")
-        submission_url_list[contest].append(tmp_list)
+            try:
+                page_list = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[8]/div/ul')
+                next_btn = page_list.find_element(By.XPATH, './child::li/a[contains(text(), \'→\')]')
+    
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable(next_btn))
+                driver.execute_script("arguments[0].click();", next_btn)
+            except:
+                break
+        submission_url_list[contest] = tmp_list
         print(submission_url_list)
         
         return submission_url_list
@@ -218,8 +217,8 @@ class CodeForcesCrawler:
         # print("problem_list: " + str(problem_list))
         print('Get submission URL...')
         submission_url_list = self.get_submission_url_list(contest, "Python 3")
-        # print('Get submissions...')
-        # submission_dict = self.get_submissions(project, id_verdict_map)
+        print('Get submissions...')
+        submission_dict = self.get_submissions(contest, submission_url_list)
         # print('Save data...')
         # self.save_data(project, submission_dict)
 
