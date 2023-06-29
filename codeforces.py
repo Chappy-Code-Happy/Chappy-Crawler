@@ -47,20 +47,21 @@ class CodeForcesCrawler:
         
     def trans_status(self, status):
         status = "".join([word.upper() for word in status if word.strip()])
-        if status in ["ACCEPTED"]:
+        if "ACCEPTED" in status:
             status = "AC"
-        elif status in ["REJECTED"]:
+        elif "REJECTED" in status:
             status = "PAC"
-        elif status in ["WRONGANSWER"]:
+        elif "WRONGANSWER" in status:
             status = "WA"
         return status
     
     def set_extension(self, language):
+        # TODO: change to UPPER
         language = "".join([word.upper() for word in language if word.strip()])
         if language in ['GNUC11', 'Clang++20Diagnostics', 'Clang++17Diagnostics', \
             'GNUC++14', 'GNUC++17', 'GNUC++20(64)', 'MSC++2017', 'GNUC++17(64)',]:
             extension = '.c' ## cpp .....
-        elif language in ['Python2', 'Python3', 'PyPy2', 'PyPy3', 'PyPy3-64']:
+        elif language in ['PYTHON2', 'PYTHON3', 'PYPY2', 'PYPY3', 'PYPY3-64']:
             extension = '.py'
         elif language in ['C#8', 'C#10', 'MonoC#']:
             extension = '.cs'
@@ -322,7 +323,7 @@ class CodeForcesCrawler:
         username_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[2]/a'
         
         try:
-            username = self.__wait_until_find(driver, username_xpath)
+            username = self.__wait_until_find(driver, username_xpath).text
         except: 
             print("Username Fail")
             pass 
@@ -384,16 +385,20 @@ class CodeForcesCrawler:
             # DO NOT USE MIRROR URL!
             submission_url = self.contest_url + contest + "/submission/" + submissionId
             
-            driver.get(submission_url)
-            # print(submission_url)
-            time.sleep(3)
-            
-            ## Get status, username, code, extension
-            username = self.get_username(driver)
-            status = self.get_status(driver)
-            extension = self.get_extension(driver)
-            code = self.get_code(driver)
+            try:
+                driver.get(submission_url)
+                print(submission_url)
+                time.sleep(3)
+                
+                ## Get status, username, code, extension
+                username = self.get_username(driver)
+                status = self.get_status(driver)
+                extension = self.get_extension(driver)
+                code = self.get_code(driver)
             # problem_code = self.get_problem_code(driver)
+            except:
+                ## do again
+                print("Submission Crawl Error")
             
             if status and username and code and extension:
                 submission_list[submissionId] = [status, username, code, extension]
@@ -464,8 +469,10 @@ class CodeForcesCrawler:
             submission_url_list = self.get_submission_url_list(contest, language, title)
             print('Get submissions...\n')
             submission_list = self.get_submission_list(contest, submission_url_list)
-            print("submission_list: " + str(submission_list))
+            # print("submission_list: " + str(submission_list))
             result[problem_code] = [title, tags, problem, input_tc, output_tc, submission_list]
+            print('Save...\n')
+            cfc.save_data(contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list)
         return result
 
 
@@ -480,5 +487,7 @@ if __name__ == '__main__':
     ## Run Only ONE Contest
     result = cfc.run_one(contest, language)
     
-    for problem_code, (title, tags, problem, input_tc, output_tc, submission_list) in tqdm(result.items(), desc="Save"):
-        cfc.save_data(contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list)
+    # for problem_code, (title, tags, problem, input_tc, output_tc, submission_list) in tqdm(result.items(), desc="Save"):
+    #     cfc.save_data(contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list)
+    
+    ## TODO: retry option
