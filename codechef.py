@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import time
 import os
 import warnings
+from tqdm import tqdm
+import logging
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -12,9 +14,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import ActionChains
-from tqdm import tqdm
-import time
-import logging
 
 
 warnings.filterwarnings('ignore')
@@ -168,7 +167,7 @@ class CodeChefCrawler:
         #     print("NO Exisiting Language.\nPlease Check Possible Language in CodeChef Language index.")
         #     exit(0)
     
-    def get_extension(self, language):
+    def set_extension(self, language):
         language = "".join([word.upper() for word in language if word.strip()])
         if language in ['C++17', 'C++', 'C++14', 'C']:
             extension = '.c'
@@ -254,7 +253,7 @@ class CodeChefCrawler:
         #     print("NO Exisiting Status.\nPlease Check Possible Status in CodeChef Status index.")
         #     exit(0)
 
-    def get_status(self, status):
+    def trans_status(self, status):
         status = "".join([word.upper() for word in status if word.strip()])
         if status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
             status = "AC"
@@ -378,7 +377,7 @@ class CodeChefCrawler:
             else:
                 problem += text.replace('\n', ' ')
 
-        return problem.split(".")
+        return problem.replace(".", ".\n")
 
     ## old version
     def get_testcase(self, driver):
@@ -415,6 +414,50 @@ class CodeChefCrawler:
         
         return input_tc, output_tc
 
+    def get_username(self, driver):
+        username = ''
+        username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
+        try:
+            username = self.__wait_until_find(driver, username_xpath).text
+        except: 
+            print("Username Fail")
+            pass 
+        return username
+    
+    def get_status(self, driver):
+        status = ''
+        status_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[1]/div/span'
+        try:
+            status = self.__wait_until_find(driver, status_xpath).text
+            status = self.trans_status(status)
+        except:
+            print("Status Fail")
+            pass 
+        return status
+    
+    def get_extension(self, driver):
+        extension = ''
+        language_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div/div/div/div[1]/div[1]'
+        try:
+            language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
+            extension = self.set_extension(language)
+        except:
+            print("Extension Fail")
+            pass 
+        return extension
+    
+    def get_code(self, solution_url):
+        try:
+            plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
+            plaintext = requests.get(plaintext_url)
+            soup = BeautifulSoup(plaintext.text, "html.parser")
+            code = soup.find("pre").get_text()
+        except:
+            print("Code Fail")
+            pass 
+
+        return code
+        
     def get_project_info(self, project):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
@@ -489,32 +532,21 @@ class CodeChefCrawler:
                     self.__wait_and_click(driver, sub_xpath)
                     time.sleep(1)
                     
-                    # Get status, username, code
+                    # Get status, username, code, extension
                     driver.switch_to.window(driver.window_handles[-1])
                     solution_url = driver.current_url
                     driver.get(solution_url)
                     time.sleep(1)
 
-                    username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
-                    username = self.__wait_until_find(driver, username_xpath).text
-                    
-                    status_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[1]/div/span'
-                    status = self.__wait_until_find(driver, status_xpath).text
-                    status = self.get_status(status)
+                    username = self.get_username(driver)
+                    status = self.get_status(driver)
+                    extension = self.get_extension(driver)
+                    code = self.get_code(solution_url)
 
-                    language_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div/div/div/div[1]/div[1]'
-                    language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
-                    extension = self.get_extension(language)
+                    submissionId = solution_url.split('/')[-1]
 
-                    id = solution_url.split('/')[-1]
-
-                    plaintext_url = solution_url.replace("viewsolution", "viewplaintext")
-                    plaintext = requests.get(plaintext_url)
-                    soup = BeautifulSoup(plaintext.text, "html.parser")
-                    code = soup.find("pre").get_text()
-
-                    if status and id and username and code and extension:
-                        submission_map[id] = [status, username, code, extension]
+                    if status and submissionId and username and code and extension:
+                        submission_map[submissionId] = [status, username, code, extension]
                 except:
                     print("Submission Error")
                     break
@@ -539,7 +571,7 @@ class CodeChefCrawler:
         file_path = dir_path+"/output_001.txt"
         self.save(dir_path, file_path, output_tc)
     
-    def save_code(self, id, status, username, code, extension):
+    def save_code(self, submissionId, status, username, code, extension):
         # Save Code
         status = "".join([word.upper() for word in status if word.strip()])
         if status in ["AC"]:
@@ -549,7 +581,7 @@ class CodeChefCrawler:
         else:
             result = "error"
         dir_path = os.path.join(self.save_path, project, result)
-        file_path = dir_path+'/'+str(id)+'&'+status+'&'+str(username)+extension
+        file_path = dir_path+'/'+str(submissionId)+'&'+status+'&'+str(username)+extension
         self.save(dir_path, file_path, code)
     
     def save_datatime(self, project):
@@ -568,10 +600,9 @@ class CodeChefCrawler:
     def save_data(self, project, title, tags, problem, input_tc, output_tc, submission_map):
         self.save_problem(project, problem, title, tags)
         self.save_testcase(project, input_tc, output_tc)
-        for id, (status, username, code, extension) in tqdm(submission_map.items(), desc='Save'):
-            self.save_code(id, status, username, code, extension)
+        for submissionId, (status, username, code, extension) in tqdm(submission_map.items(), desc='Save'):
+            self.save_code(submissionId, status, username, code, extension)
         self.save_datatime(project)
-
 
     def run_one(self, project, language="LANGUAGE", status="STATUS"):
         logger.info('\n'+project)
@@ -579,7 +610,6 @@ class CodeChefCrawler:
         self.set_language(language)
         self.set_status(status)
         title, tags, problem, input_tc, output_tc = self.get_project_info(project)
-        # submission_map = self.get_submission_map(project)
         submission_map = self.get_submission_list(project)
         return title, tags, problem, input_tc, output_tc, submission_map
         
