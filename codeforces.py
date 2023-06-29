@@ -46,13 +46,13 @@ class CodeForcesCrawler:
         self.save_path = save_path
         
     def trans_status(self, status):
-        # status = "".join([word.upper() for word in status if word.strip()])
-        # if status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
-        #     status = "AC"
-        # elif status in ["AC(PARTIAL)", "PAC"]:
-        #     status = "PAC"
-        # elif status in ["WA", "WRONG", "WRONGANSWER"]:
-        #     status = "WA"
+        status = "".join([word.upper() for word in status if word.strip()])
+        if status in ["ACCEPTED"]:
+            status = "AC"
+        elif status in ["REJECTED"]:
+            status = "PAC"
+        elif status in ["WRONGANSWER"]:
+            status = "WA"
         return status
     
     def set_extension(self, language):
@@ -330,7 +330,7 @@ class CodeForcesCrawler:
     
     def get_status(self, driver):
         status = ''
-        status_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[5]/span'
+        status_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[5]'
         try:
             status = self.__wait_until_find(driver, status_xpath).text
             status = self.trans_status(status)
@@ -417,16 +417,14 @@ class CodeForcesCrawler:
     
     def save_code(self, contest, problem_code, submissionId, status, username, code, extension):
         # Save Code
-        # status = "".join([word.upper() for word in status if word.strip()])
-        # if status in ["AC"]:
-        #     result = "correct"
-        # elif status in ["WA", "PAC"]:
-        #     result = "wrong"
-        # else:
-        #     result = "error"
-        
-        ## FIX!!
-        result = "correct"
+        status = "".join([word.upper() for word in status if word.strip()])
+        if status in ["AC"]:
+            result = "correct"
+        elif status in ["WA", "PAC"]:
+            result = "wrong"
+        else:
+            result = "error"
+            
         dir_path = os.path.join(self.save_path, contest, problem_code, result)
         file_path = dir_path+'/'+str(submissionId)+'&'+status+'&'+str(username)+extension
         self.save(dir_path, file_path, code)
