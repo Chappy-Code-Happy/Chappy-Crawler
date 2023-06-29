@@ -21,12 +21,12 @@ options = Options()
 user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 options.add_argument('user-agent=' + user_agent)
 ## for background
-# options.add_argument("headless")
+options.add_argument("headless")
 options.add_argument('--window-size=1920, 1080')
 options.add_argument('--no-sandbox')
 options.add_argument("--disable-dev-shm-usage")
-# options.add_argument('--start-maximized')
-# options.add_argument('--start-fullscreen')
+options.add_argument('--start-maximized')
+options.add_argument('--start-fullscreen')
 options.add_argument('--disable-blink-features=AutomationControlled')
 
 # Save log 
@@ -39,11 +39,59 @@ logger.addHandler(file_handler)
 class CodeForcesCrawler:
     
     def __init__(self, save_path):
-        self.url = "https://www.codeforces.com/"
+        self.url = "https://codeforces.com/"
         self.mirror_url = "https://mirror.codeforces.com/"
         self.contest_url = self.url + "contest/"
 
         self.save_path = save_path
+        
+    def trans_status(self, status):
+        # status = "".join([word.upper() for word in status if word.strip()])
+        # if status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
+        #     status = "AC"
+        # elif status in ["AC(PARTIAL)", "PAC"]:
+        #     status = "PAC"
+        # elif status in ["WA", "WRONG", "WRONGANSWER"]:
+        #     status = "WA"
+        return status
+    
+    def set_extension(self, language):
+        language = "".join([word.upper() for word in language if word.strip()])
+        if language in ['GNUC11', 'Clang++20Diagnostics', 'Clang++17Diagnostics', \
+            'GNUC++14', 'GNUC++17', 'GNUC++20(64)', 'MSC++2017', 'GNUC++17(64)',]:
+            extension = '.c' ## cpp .....
+        elif language in ['Python2', 'Python3', 'PyPy2', 'PyPy3', 'PyPy3-64']:
+            extension = '.py'
+        elif language in ['C#8', 'C#10', 'MonoC#']:
+            extension = '.cs'
+        elif language == 'D':
+            extension = '.D'
+        elif language == 'GO':
+            extension = '.go'
+        elif language == 'Haskell':
+            extension = '.chs'
+        elif language in ['Java11', 'Java17', 'Java8']:
+            extension = '.java'
+        elif language in ['Kotlin1.6', 'Kotlin1.7']:
+            extension = '.kt'
+        elif language == 'Ocaml':
+            extension = '.ml'
+        elif language == 'JavaScript':
+            extension = '.js'
+        elif language == 'RUST2021':
+            extension = '.rs'
+        elif language == 'PHP':
+            extension = '.php'
+        elif language == 'Node.js':
+            extension = '.js'
+        elif language == 'Ruby3':
+            extension = '.R'
+        ## Delphi, FPC, PascalABC.NET, Perl, Scala
+        else:
+            extension = '.txt'
+        
+        return extension
+
         
     def __wait_until_find(self, driver, xpath):
         WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, xpath)))
@@ -79,7 +127,7 @@ class CodeForcesCrawler:
         problem_url = self.contest_url + contest
         driver.get(problem_url)
         time.sleep(1)
-    
+
         problem_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody'
         
         try:
@@ -105,7 +153,8 @@ class CodeForcesCrawler:
         submission_url_list = {}
         
         ## using miror_url -> because when click event occur, it rendering to 'mirror.codeforces.com'
-        status_url = self.mirror_url + "contest/" + contest + '/status'
+        # status_url = self.mirror_url + "contest/" + contest + '/status'
+        status_url = self.url + "contest/" + contest + '/status'
         driver.get(status_url)
         time.sleep(1)
         
@@ -142,70 +191,113 @@ class CodeForcesCrawler:
 
         ## Get submission url
         tmp_list = []
-        for j in range(1, last_page+1): 
+        for j in tqdm(range(1, last_page+1), desc='Submission URL'): 
             for i in range (2, 52):
                 try:
                     url = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[' + str(i) + ']/td[1]/a')
                     
-                    print("url: " + url.text)
+                    # print("url: " + url.text)
                     tmp_list.append(url.text)
                 except:
-                    print("url error")
+                    print("End Submissions")
                     break
-                
+            
+            if j == last_page:
+                break
             try:
                 page_list = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[8]/div/ul')
                 next_btn = page_list.find_element(By.XPATH, './child::li/a[contains(text(), \'→\')]')
     
                 WebDriverWait(driver, 20).until(EC.element_to_be_clickable(next_btn))
                 driver.execute_script("arguments[0].click();", next_btn)
+                
+                ## add when last page
             except:
                 break
         submission_url_list[contest] = tmp_list
-        print(submission_url_list)
+        # print(submission_url_list)
         
         return submission_url_list
+    
+    def get_username(self, driver):
+        username = ''
+        username_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[2]/a'
+        
+        try:
+            username = self.__wait_until_find(driver, username_xpath)
+        except: 
+            print("Username Fail")
+            pass 
+        return username
+    
+    def get_status(self, driver):
+        status = ''
+        status_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[5]/span'
+        try:
+            status = self.__wait_until_find(driver, status_xpath).text
+            status = self.trans_status(status)
+        except:
+            print("Status Fail")
+            pass 
+        return status
+    
+    def get_extension(self, driver):
+        extension = ''
+        language_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[4]'
+        try:
+            language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
+            extension = self.set_extension(language)
+        except:
+            print("Extension Fail")
+            pass 
+        return extension
+    
+    def get_code(self, driver):
+        code = ''
+        code_xpath = '//*[@id="program-source-text"]/ol'
+        try:
+            code = self.__wait_until_find(driver, code_xpath).text
+            # print("code: " + code)
+        except:
+            print("Code Fail")
+            pass 
+
+        return code
+    
+    def get_problem(self, driver):
+        problem = ''
+        problem_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[2]/td[3]/a'
+        try:
+            problem = self.__wait_until_find(driver, problem_xpath).text
+        except:
+            print("Problem Fail")
+            pass 
+
+        return problem
         
     def get_submission_list(self, contest, submission_url_list):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         submission_list = {}
         
-        for sub_url in range(submission_url_list[contest]):
+        for sub_url in tqdm(submission_url_list[contest], desc='Sumission'):
+            # DO NOT USE MIRROR URL!
             submission_url = self.contest_url + contest + "/submission/" + sub_url
             
             driver.get(submission_url)
+            print(submission_url)
             time.sleep(3)
             
-            ## Get status, username, code
+            ## Get status, username, code, extension
             username = self.get_username(driver)
+            status = self.get_status(driver)
+            extension = self.get_extension(driver)
+            code = self.get_code(driver)
+            problem = self.get_problem(driver)
             
-            
-            
+            if status and username and code and extension and problem:
+                submission_list[contest] = [status, username, code, extension]
         
         return submission_list
-        # submission_dict = {}
-        # failed_dict = {}
-
-        # submission_url = self.url + 'contest/' + project + '/submission/'
-
-        # for id, verdict in tqdm(id_verdict_map.items()):
-        #     page_url = submission_url + str(id)
-        #     print(page_url)
-        #     page = requests.get(page_url)
-        #     soup = BeautifulSoup(page.text, "html.parser")
-        #     try:
-        #         code = soup.find('pre', {'id': 'program-source-text'}).text
-        #         submission_dict[id] = [verdict, code]
-        #     except:
-        #         failed_dict[id] = verdict
-        #         # logger.info(page_url)
-        
-        # if failed_dict:
-        #     rest_submission_dict = self.get_submissions(project, failed_dict)
-        #     submission_dict.update(rest_submission_dict)
-                
-        # return submission_dict
-
 
     def save(self, dir_path, file_path, data):
         if not os.path.isdir(dir_path):
@@ -226,9 +318,10 @@ class CodeForcesCrawler:
         print('Get submission URL...')
         submission_url_list = self.get_submission_url_list(contest, "Python 3")
         print('Get submissions...')
-        submission_dict = self.get_submissions(contest, submission_url_list)
+        submission_list = self.get_submission_list(contest, submission_url_list)
+        # print("submission_list: " + str(submission_list))
         # print('Save data...')
-        # self.save_data(project, submission_dict)
+        # self.save_data(contest, submission_list)
 
 # def recrawl():
 #     urls = open('codeforces.log').read()

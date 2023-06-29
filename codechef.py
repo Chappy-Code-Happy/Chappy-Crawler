@@ -167,7 +167,7 @@ class CodeChefCrawler:
         #     print("NO Exisiting Language.\nPlease Check Possible Language in CodeChef Language index.")
         #     exit(0)
     
-    def get_extension(self, language):
+    def set_extension(self, language):
         language = "".join([word.upper() for word in language if word.strip()])
         if language in ['C++17', 'C++', 'C++14', 'C']:
             extension = '.c'
@@ -253,7 +253,7 @@ class CodeChefCrawler:
         #     print("NO Exisiting Status.\nPlease Check Possible Status in CodeChef Status index.")
         #     exit(0)
 
-    def get_status(self, status):
+    def trans_status(self, status):
         status = "".join([word.upper() for word in status if word.strip()])
         if status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
             status = "AC"
@@ -429,7 +429,7 @@ class CodeChefCrawler:
         status_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[1]/div/span'
         try:
             status = self.__wait_until_find(driver, status_xpath).text
-            status = self.get_status(status)
+            status = self.trans_status(status)
         except:
             print("Status Fail")
             pass 
@@ -440,7 +440,7 @@ class CodeChefCrawler:
         language_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div/div/div/div[1]/div[1]'
         try:
             language = self.__wait_until_find(driver, language_xpath).text.split('Language:')[-1].strip()
-            extension = self.get_extension(language)
+            extension = self.set_extension(language)
         except:
             print("Extension Fail")
             pass 
