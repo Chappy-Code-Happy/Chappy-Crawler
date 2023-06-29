@@ -377,7 +377,7 @@ class CodeChefCrawler:
             else:
                 problem += text.replace('\n', ' ')
 
-        return problem.split(".")
+        return problem.replace(".", ".\n")
 
     ## old version
     def get_testcase(self, driver):
@@ -610,7 +610,6 @@ class CodeChefCrawler:
         self.set_language(language)
         self.set_status(status)
         title, tags, problem, input_tc, output_tc = self.get_project_info(project)
-        # submission_map = self.get_submission_map(project)
         submission_map = self.get_submission_list(project)
         return title, tags, problem, input_tc, output_tc, submission_map
         
