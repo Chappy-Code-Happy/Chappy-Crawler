@@ -610,7 +610,8 @@ class CodeChefCrawler:
         dir_path = os.path.join(self.save_path, project)
         file_path = dir_path+"/saved_date_time.txt"
         self.save(dir_path, file_path, times)
-        
+    
+    ## TODO: change to csv
     def save(self, dir_path, file_path, data):
         if not os.path.isdir(dir_path):
             os.makedirs(dir_path)
@@ -669,6 +670,6 @@ if __name__ == '__main__':
     #         title, tags, problem, input_tc, output_tc, submission_map = ccc.run_one(project, language, status)
     #         ccc.save_data(project, title, tags, problem, input_tc, output_tc, submission_map)
     
-    title, tags, problem, input_tc, output_tc, submission_map = ccc.run_one('SEAFUNC', 'PYTH 3', status)
-    ccc.save_data('SEAFUNC', title, tags, problem, input_tc, output_tc, submission_map)
+    # title, tags, problem, input_tc, output_tc, submission_map = ccc.run_one('SEAFUNC', 'PYTH 3', status)
+    # ccc.save_data('SEAFUNC', title, tags, problem, input_tc, output_tc, submission_map)
         
