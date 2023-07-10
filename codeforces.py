@@ -104,8 +104,15 @@ class CodeForcesCrawler:
         button = driver.find_element(By.XPATH, xpath)
         driver.execute_script("arguments[0].click();", button)
 
-    def get_contest_list(self, driver):
+    def get_contest_list(self):
         contest_list = []
+        
+        contest_api = self.url + 'api/contest.list'
+        res = requests.get(contest_api)
+        results = res.json()['result']
+        
+        for result in tqdm(results, desc="CONTEST"):
+            contest_list.append(result['id'])
 
         # page_url = self.mirror_url + 'api/contest.status?contestId=' + project + '&count=500' # just 10
         # print("API: " + page_url)
@@ -117,7 +124,7 @@ class CodeForcesCrawler:
         #         and result['problem']['name'] == 'Merge Sort' \
         #         and result['verdict'] in ['OK', 'WRONG_ANSWER']:
         #         id_verdict_map[result['id']] = result['verdict']
-        
+        print(contest_list)
         return contest_list
     
     def get_problem_code_list(self, contest):
@@ -483,9 +490,10 @@ if __name__ == '__main__':
     
     # Run CodeForcesCrawler with save_path
     cfc = CodeForcesCrawler(save_path)
+    cfc.get_contest_list()
     
     ## Run Only ONE Contest
-    result = cfc.run_one(contest, language)
+    # result = cfc.run_one(contest, language)
     
     # for problem_code, (title, tags, problem, input_tc, output_tc, submission_list) in tqdm(result.items(), desc="Save"):
     #     cfc.save_data(contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list)
