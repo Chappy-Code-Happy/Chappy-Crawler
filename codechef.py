@@ -6,7 +6,9 @@ import warnings
 from tqdm import tqdm
 import logging
 import csv
+from csv import writer
 import pandas as pd
+import asyncio
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -184,7 +186,7 @@ class CodeChefCrawler:
             extension = '.c'
         elif language in ['C++17', 'C++14']:
             extension = '.cpp'
-        elif language in ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY']:
+        elif language in ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY', 'PYTHON3', 'PYTHON']:
             extension = '.py'
         elif language == 'JAVA':
             extension = '.java'
@@ -361,17 +363,18 @@ class CodeChefCrawler:
         return tags       
 
     def get_title(self, driver):
+
         title = ''
         title_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[1]/h1'
         
         try: 
-            time.sleep(0.1) # for prevent null
+            time.sleep(1) # for prevent null
             title = self.__wait_until_find(driver, title_xpath).text
         except: 
             print("Title Fail")
             pass
 
-        return title.strip()
+        return title
 
     def get_problem(self, driver):
         problem = ""
@@ -438,6 +441,7 @@ class CodeChefCrawler:
         username = ''
         username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
         try:
+            time.sleep(1) # for prevent null
             username = self.__wait_until_find(driver, username_xpath).text
         except: 
             print("Username Fail")
@@ -485,32 +489,33 @@ class CodeChefCrawler:
         driver.get(page_url)
         print(page_url)
 
-        time.sleep(1)
+        time.sleep(3)
+        
         title = self.get_title(driver)
         tags = self.get_tags(driver)
         problem = self.get_problem(driver)
         input_tc, output_tc = self.get_testcase(driver, project)
 
+        ## retry
         if title == '':
-            logger.info('No Title')
+            title = self.get_title(driver)
         if tags == []:
-            logger.info('No Tags')
+            tags = self.get_tags(driver)
         if problem == '':
-            logger.info('No Problem')
+            problem = self.get_problem(driver)
         if input_tc == '' or output_tc == '':
-            logger.info('No Testcase')
+            input_tc, output_tc = self.get_testcase(driver, project)
 
         driver.quit()
-
+        # print(title)
         return title, tags, problem, input_tc, output_tc
 
-    def get_submission_list(self, project):
+    def get_submission_id_list(self, project):
 
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-        submission_map = {}
+        submission_id_list = []
         
         for lang in self.language:
-
             url_a = self.status_url + project + "?"
             url_b = "limit=100&sort_by=All&sorting_order=asc&language="+lang+"&status="+self.status+"&handle=&Submit=GO"
             
@@ -519,65 +524,64 @@ class CodeChefCrawler:
             
             driver.get(page_url)
             time.sleep(1)
-                
-            driver.switch_to.window(driver.window_handles[0]) # for switch to exist page
-            # driver.get(page_url)
-            for i in tqdm(range(100), desc="Submissions"):
-                sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[8]/div/span'
-                try:
-                    # Go to submission list page
-                    driver.switch_to.window(driver.window_handles[0])
-                    driver.get(driver.current_url)
-                    time.sleep(10)
-                
-                except:
-                    print("submission list page error")
-                    
-                column_list_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div[2]/table/thead/tr'
-        
-                try:
-                    column_list = self.__wait_until_find(driver, column_list_xpath)
-                    children = column_list.find_elements(By.XPATH, "./child::*")
-                    for i in range(1, len(children)+1):
-                        # print(children[i-1].text)
-                        if children[i-1].text == "Solution":
-                            td = i
-                            break
-                except:
-                    print("Error")
-                    
+                        
+            for i in tqdm(range(25), desc="Submissions"):
+                sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[1]/div'
                 try:
                     # Go to Submission code
-                    tag = self.__wait_until_find(driver, sub_xpath)
+                    sub_id = self.__wait_until_find(driver, sub_xpath)
                     action = ActionChains(driver)
-                    action.move_to_element(tag).perform() # scroll
-                    # print(str(tag))
-                    self.__wait_and_click(driver, sub_xpath)
-                    time.sleep(1)
+                    action.move_to_element(sub_id).perform() # scroll
+                    # print(sub_id.text)
+                    submission_id_list.append(sub_id.text)
                 except:
+                    print("End")
                     break
+                
+        driver.quit()        
+        
+        return submission_id_list
+                
+    def run_code(self):
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        submission_map = {}
+        
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])
+        for project in tqdm(project_list, desc='Save Code'):
+            submission_id_list = self.get_submission_id_list(project)
+            for sub_id in  tqdm(submission_id_list, desc='Save Submission'):
+                code_url = self.url + 'viewsolution/' + sub_id
+                print(code_url)
+                driver.get(code_url)
+                time.sleep(3)
                 
                 try:   
                     # Get status, username, code, extension, language
-                    driver.switch_to.window(driver.window_handles[-1])
-                    solution_url = driver.current_url
-                    driver.get(solution_url)
-                    time.sleep(1)
-
                     username = self.get_username(driver)
                     status = self.get_status(driver)
                     language, extension = self.get_extension(driver)
-                    code = self.get_code(solution_url)
+                    code = self.get_code(code_url)
 
-                    submissionId = solution_url.split('/')[-1]
-
-                    if status and submissionId and username and code and language and extension:
-                        submission_map[submissionId] = [status, username, code, language, extension]
                 except:
                     print("Submission Error")
-                driver.close()
+                
+                ## retry
+                if username == '':
+                    username = self.get_username(driver)
+                if status == '':
+                    status = self.get_status(driver)
+                if language == '' or extension == '':
+                    language, extension = self.get_extension(driver)
+                if code == '':
+                    code = self.get_code(code_url)
+                    
+                if status and username and code and language and extension:
+                    submission_map[sub_id] = [username, status, language, extension, code]
+                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                    self.save_code(project, sub_id, username, status, language, extension, code, datatime)
+            
         driver.quit()
-
+        # print(submission_map)
         return submission_map
 
     def save_project(self, project_list):
@@ -591,119 +595,39 @@ class CodeChefCrawler:
         
     def save_problem(self, project, title, problem, tags, input_tc, output_tc, datatime):
         # Save Problem
-        df = pd.DataFrame(project, columns = ['projectID'])
         
-        df['title'] = title
-        df['problem'] = problem
-        df['tags'] = tags
-        df['input_tc'] = input_tc
-        df['output_tc'] = output_tc
-        df['datatime'] = datatime
+        f = open(self.save_path + 'problem2.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([project, title, problem, tags, input_tc, output_tc, datatime])
         
-        self.save("problem.csv", df)
+        f.close()
     
     def save_code(self, project, submissionId, username, status, language, extension, code, datatime):
         # Save Code
-        project_list = []
-        result_list = []
-        for s in range(status):
-            project_list.append(project)
-            s = "".join([word.upper() for word in s if word.strip()])
-            if s in ["AC"]:
-                result = "correct"
-            elif s in ["WA", "PAC"]:
-                result = "wrong"
-            else:
-                result = "error"
-            result_list.append(result)
-
-        df = pd.DataFrame(project_list, columns = ['projectID'])
+        f = open(self.save_path + 'code.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([project, submissionId, username, status, language, extension, code, datatime])
         
-        df['submissionID'] = submissionId
-        df['username'] = username
-        df['status'] = result_list
-        df['language'] = language
-        df['extension'] = extension
-        df['code'] = code
-        df['datatime'] = datatime
-        
-        self.save("code.csv", df)
+        f.close()
         
     def save(self, file_path, data):
         if not os.path.isdir(self.save_path):
             os.makedirs(self.save_path)  
         data.to_csv(self.save_path+file_path, index = False)
-        
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')[['projectID']])
-        
-        title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
-        submissionId_list, username_list, status_list, language_list, extension_list, code_list, submission_datatime_list = [],[],[],[],[],[],[]
-        for project in tqdm(project_list, desc='Save Problem'):
-            title, tags, problem, input_tc, output_tc, submission_map = self.run_one(project, language, status)
-            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-
-            title_list.append(title)
-            tags_list.append(tags)
-            problem_list.append(problem)
-            input_tc_list.append(input_tc)
-            output_tc_list.append(output_tc)
-            problem_datatime_list.append(datatime)
-            self.save_problem(project_list, title_list, problem_list, tags_list, input_tc_list, output_tc_list,  problem_datatime_list)
-            # print(submission_map)
-            if submission_map:
-                for submissionId, (status, username, code, language, extension) in tqdm(submission_map.items(), desc='Save Code'):
-                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-                    
-                    submissionId_list.append(submissionId)
-                    username_list.append(username)
-                    status_list.append(status)
-                    language_list.append(language)
-                    extension_list.append(extension)
-                    code_list.append(code)
-                    submission_datatime_list.append(datatime)
-                    self.save_code(project, submissionId_list, username_list, status_list, language_list, extension_list, code_list, submission_datatime_list)
     
     def run_project(self):
         project_list = self.get_project_list()
         self.save_project(project_list)
         
     def run_problem(self):
-        title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
+        # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
         
         project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])
-        cnt = 1
         for project in tqdm(project_list, desc='Save Problem'):
             title, tags, problem, input_tc, output_tc = self.get_project_info(project)
             datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
 
-            title_list.append(title)
-            tags_list.append(tags)
-            problem_list.append(problem)
-            input_tc_list.append(input_tc)
-            output_tc_list.append(output_tc)
-            problem_datatime_list.append(datatime)
-            self.save_problem(project_list[:cnt], title_list, problem_list, tags_list, input_tc_list, output_tc_list,  problem_datatime_list)
-            cnt += 1
-        
-    def run_code(self):
-        submissionId_list, username_list, status_list, language_list, extension_list, code_list, submission_datatime_list = [],[],[],[],[],[],[]
-        
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])
-        for project in tqdm(project_list, desc='Save Code'):
-            submission_map = self.get_submission_list(project)
-            
-            if submission_map:
-                for submissionId, (status, username, code, language, extension) in tqdm(submission_map.items(), desc='Save Code'):
-                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-                    
-                    submissionId_list.append(submissionId)
-                    username_list.append(username)
-                    status_list.append(status)
-                    language_list.append(language)
-                    extension_list.append(extension)
-                    code_list.append(code)
-                    submission_datatime_list.append(datatime)
-                    self.save_code(project, submissionId_list, username_list, status_list, language_list, extension_list, code_list, submission_datatime_list)
+            self.save_problem(project, title, problem, tags, input_tc, output_tc,  datatime)
 
     def get_csv(self, file_path):
         ## Get CSV file
