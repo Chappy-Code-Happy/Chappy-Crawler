@@ -5,6 +5,10 @@ import os
 import warnings
 from tqdm import tqdm
 import logging
+import csv
+from csv import writer
+import pandas as pd
+import asyncio
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -35,12 +39,11 @@ logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler('codechef.log')
 logger.addHandler(file_handler)
 
-
 class CodeChefCrawler:
     # Set language and status
     # Default is "All"
-    language = "All"
-    status = "All"
+    language = ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY']
+    status = ''
 
     def __init__(self, save_path):
         self.url = "https://www.codechef.com/"
@@ -51,7 +54,17 @@ class CodeChefCrawler:
         self.save_path = save_path
     
     def set_language(self, language):
-        self.language = language
+        language = "".join([word.upper() for word in language if word.strip()])
+        if language == 'PYTHON':
+            self.language = ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY']
+        elif language == 'C++':
+            self.language = ['C++17', 'C++14']
+        elif language == 'C':
+            self.language = ['C']
+        elif language == 'JAVA':
+            self.language = ['JAVA']
+        ## add
+            
         # language = "".join([word.upper() for word in language if word.strip()])
         # if language in ['LANGUAGE', 'ALL']:
         #     self.language = 'All'
@@ -169,9 +182,11 @@ class CodeChefCrawler:
     
     def set_extension(self, language):
         language = "".join([word.upper() for word in language if word.strip()])
-        if language in ['C++17', 'C++', 'C++14', 'C']:
+        if language in ['C']:
             extension = '.c'
-        elif language in ['PYTH3.6', 'PY3', 'PY36', 'PYTHON3', 'PYTH', 'PY27', 'PY2', 'PYTHON', 'PYPY3', 'PYPY', 'PYTH3']:
+        elif language in ['C++17', 'C++14']:
+            extension = '.cpp'
+        elif language in ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY', 'PYTHON3', 'PYTHON']:
             extension = '.py'
         elif language == 'JAVA':
             extension = '.java'
@@ -292,7 +307,7 @@ class CodeChefCrawler:
         driver.get(page_url)
         time.sleep(1)
         
-        print(page_url)
+        # print(page_url)
         page_path = '//*[@id="root"]/div/div[3]/div/div[2]/div/div[2]/div/div[3]/div/table/tfoot/tr/td/div/div[2]/div/p[2]'
         page_of_page = self.__wait_until_find(driver, page_path)
         
@@ -301,8 +316,8 @@ class CodeChefCrawler:
         last_page = int(page_of_page.text.split('of')[1].strip())
         jump_page = int(last_page/rows_per_page) + 1
         
-        print(last_page)
-        print(jump_page)
+        # print(last_page)
+        # print(jump_page)
         
         # jump_page = 2 # Delete when run
         
@@ -348,17 +363,18 @@ class CodeChefCrawler:
         return tags       
 
     def get_title(self, driver):
+
         title = ''
         title_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[1]/h1'
         
         try: 
-            time.sleep(0.1) # for prevent null
+            time.sleep(1) # for prevent null
             title = self.__wait_until_find(driver, title_xpath).text
         except: 
             print("Title Fail")
             pass
 
-        return title.strip()
+        return title
 
     def get_problem(self, driver):
         problem = ""
@@ -366,53 +382,64 @@ class CodeChefCrawler:
         
         try: 
             problem_statement = self.__wait_until_find(driver, problem_xpath)
-            
+            children = problem_statement.find_elements(By.XPATH, './child::*')
+
+            for elem in children:
+                tag = elem.tag_name
+                text = elem.text
+                if tag in ['h2', 'h3']:
+                    if text != 'Problem':
+                        if not problem:
+                            continue
+                        break
+                elif tag in ['li']:
+                    problem += "\n - " + text.replace('\n', ' ')
+                else:
+                    problem += text.replace('\n', ' ')
         except: 
             print("Problem Fail")
             pass
-        
-        children = problem_statement.find_elements(By.XPATH, './child::*')
-
-        for elem in children:
-            tag = elem.tag_name
-            text = elem.text
-            if tag in ['h2', 'h3']:
-                if text != 'Problem':
-                    if not problem:
-                        continue
-                    break
-            elif tag in ['li']:
-                problem += "\n - " + text.replace('\n', ' ')
-            else:
-                problem += text.replace('\n', ' ')
 
         return problem.replace(".", ".\n")
 
-    def get_testcase(self, driver):
+    def get_testcase(self, driver, project):
         input_tc, output_tc = '', ''
+
+        page_url = self.url + "problems-old/" + project
+        driver.get(page_url)
+
+        input_x_paths = ['//*[@id="sample-input-1"]',
+                        '//*[@id="problem-statement"]/pre[1]',
+                        '//*[@id="problem-statement"]/pre',
+                        '//*[@id="problem-statement"]/pre[1]/tt',
+                        '//*[@id="problem-statement"]/pre[1]/code']
         
-        try:
-            tc = self.__wait_until_find(driver, '//*[@id="problem-statement"]/pre')
-            tc_list = tc.text.split('\n')[1:]
-            check = True
-            for t in tc_list:
-                if t == 'Output:':
-                    check = False
-                    continue
-                
-                if check == True:
-                    input_tc += t + '\n'
+        output_x_paths = ['//*[@id="sample-output-1"]',
+                        '//*[@id="problem-statement"]/pre[2]',
+                        '//*[@id="problem-statement"]/pre',
+                        '//*[@id="problem-statement"]/pre[2]/tt',
+                        '//*[@id="problem-statement"]/pre[2]/code']
+        
+        for in_xpath, out_xpath in zip(input_x_paths, output_x_paths):
+            try:
+                if in_xpath == out_xpath:
+                    input_tc, output_tc = self.__wait_until_find(driver, in_xpath).text
                 else:
-                    output_tc += t + '\n'
-        except: 
-            print("Testcase Fail") 
-            
+                    input_tc = self.__wait_until_find(driver, in_xpath).text
+                    output_tc = self.__wait_until_find(driver, out_xpath).text
+                if input_tc.strip() and output_tc.strip():
+                    break
+            except:
+                input_tc = ''
+                output_tc = ''
+        
         return input_tc, output_tc
 
     def get_username(self, driver):
         username = ''
         username_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div/div[2]/a'
         try:
+            time.sleep(1) # for prevent null
             username = self.__wait_until_find(driver, username_xpath).text
         except: 
             print("Username Fail")
@@ -439,7 +466,7 @@ class CodeChefCrawler:
         except:
             print("Extension Fail")
             pass 
-        return extension
+        return language, extension
     
     def get_code(self, solution_url):
         try:
@@ -460,215 +487,184 @@ class CodeChefCrawler:
         driver.get(page_url)
         print(page_url)
 
-        time.sleep(1)
+        time.sleep(3)
+        
         title = self.get_title(driver)
         tags = self.get_tags(driver)
         problem = self.get_problem(driver)
-        input_tc, output_tc = self.get_testcase(driver)
+        input_tc, output_tc = self.get_testcase(driver, project)
 
+        ## retry
         if title == '':
-            logger.info('No Title')
+            title = self.get_title(driver)
         if tags == []:
-            logger.info('No Tags')
+            tags = self.get_tags(driver)
         if problem == '':
-            logger.info('No Problem')
+            problem = self.get_problem(driver)
         if input_tc == '' or output_tc == '':
-            logger.info('No Testcase')
+            input_tc, output_tc = self.get_testcase(driver, project)
 
         driver.quit()
-
+        # print(title)
         return title, tags, problem, input_tc, output_tc
 
-    def get_submission_list(self, project):
+    def get_submission_id_list(self, project):
 
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-
-        url_a = self.status_url + project + "?"
-        url_b = "limit=100&sort_by=All&sorting_order=asc&language="+self.language+"&status="+self.status+"&handle=&Submit=GO"
+        submission_id_list = []
         
-        driver.get(url_a + url_b)
-        print(url_a + url_b)
-        ## Get last page
-        try:
+        for lang in self.language:
+            url_a = self.status_url + project + "?"
+            url_b = "limit=100&sort_by=All&sorting_order=asc&language="+lang+"&status="+self.status+"&handle=&Submit=GO"
+            
+            page_url = url_a + url_b
+            print(page_url)
+            
+            driver.get(page_url)
             time.sleep(1)
-            tag = self.__wait_until_find(driver, '//*[@id="root"]/div/div[3]/div/div/div[4]/table/tfoot/tr/td/div/div[1]/div/div')
-        
-            action = ActionChains(driver)
-            action.move_to_element(tag).perform()
-            
-            rows_per_page = int(self.__wait_until_find(driver, '//*[@id="pagination-rows"]').text)
-            entire_num = int(self.__wait_until_find(driver, '//*[@id="root"]/div/div[3]/div/div/div[4]/table/tfoot/tr/td/div/div[2]/div/p[2]').text.split("of")[1])
-        except:
-            print("Fail submission list")
-
-        last_page = entire_num // rows_per_page if entire_num %rows_per_page == 0 else entire_num // rows_per_page + 1
-        submission_map = {}
-        
-        column_list_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/div[2]/table/thead/tr'
-        
-        try:
-            column_list = self.__wait_until_find(driver, column_list_xpath)
-            children = column_list.find_elements(By.XPATH, "./child::*")
-            for i in range(1, len(children)+1):
-                # print(children[i-1].text)
-                if children[i-1].text == "Solution":
-                    td = i
+                        
+            for i in tqdm(range(25), desc="Submissions"):
+                sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[1]/div'
+                try:
+                    # Go to Submission code
+                    sub_id = self.__wait_until_find(driver, sub_xpath)
+                    action = ActionChains(driver)
+                    action.move_to_element(sub_id).perform() # scroll
+                    # print(sub_id.text)
+                    submission_id_list.append(sub_id.text)
+                except:
+                    print("End")
                     break
-        except:
-            print("Error")
-            
-        ## Get Solution View Url
-        
-        # for no in tqdm(range(int(last_page)), desc='Submission'):
-        
-        ## Just get 100 submissions
-        # page_url = url_a + "page=" + str(no) + "&" + url_b
-        page_url = url_a + "page=1" + "&" + url_b
-            
-        driver.switch_to.window(driver.window_handles[0]) # for switch to exist page
-        driver.get(page_url)
-        time.sleep(1)
-    
-        for i in tqdm(range(rows_per_page), desc="Submissions"):
-            sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[9]/div/span'
-            try:
-                # Go to submission list page
-                driver.switch_to.window(driver.window_handles[0])
-                driver.get(driver.current_url)
-                time.sleep(1)
-            
-            except:
-                print("submission list page error")
                 
-            try:
-                # Go to Submission code
-                tag = self.__wait_until_find(driver, sub_xpath)
-                action = ActionChains(driver)
-                action.move_to_element(tag).perform() # scroll
-                # print(str(tag))
-                self.__wait_and_click(driver, sub_xpath)
-                time.sleep(1)
-            except:
-                break
-            
-            try:   
-                # Get status, username, code, extension
-                driver.switch_to.window(driver.window_handles[-1])
-                solution_url = driver.current_url
-                driver.get(solution_url)
-                time.sleep(1)
-
-                username = self.get_username(driver)
-                status = self.get_status(driver)
-                extension = self.get_extension(driver)
-                code = self.get_code(solution_url)
-
-                submissionId = solution_url.split('/')[-1]
-
-                if status and submissionId and username and code and extension:
-                    submission_map[submissionId] = [status, username, code, extension]
-            except:
-                print("Submission Error")
-            driver.close()
+        driver.quit()        
         
-        driver.quit()
+        return submission_id_list
 
-        return submission_map
-
-    def save_problem(self, project, problem, title, tags):
+    def save_project(self, project_list):
+        df = pd.DataFrame(project_list, columns = ['projectID'])
+        time_list = []
+        for i in range(len(project_list)):
+            time_list.append(time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime()))
+        df['datatime'] = time_list
+        
+        self.save("project.csv", df)
+        
+    def save_problem(self, project, title, problem, tags, input_tc, output_tc, datatime):
         # Save Problem
-        dir_path = os.path.join(self.save_path, project)
-        file_path = dir_path+"/problem.txt"
-        describtion = 'Title: %s\nProblem:\n%s\nTags:%s' %(title, problem, tags) 
-        self.save(dir_path, file_path, describtion)
-
-    def save_testcase(self, project, input_tc, output_tc):
-        # Save Testcase
-        dir_path = os.path.join(self.save_path, project, 'testcases')
-        file_path = dir_path+"/input_001.txt"
-        self.save(dir_path, file_path, input_tc)
-        file_path = dir_path+"/output_001.txt"
-        self.save(dir_path, file_path, output_tc)
+        f = open(self.save_path + 'problem4.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([project, title, problem, tags, input_tc, output_tc, datatime])
+        
+        f.close()
     
-    def save_code(self, project, submissionId, status, username, code, extension):
+    def save_code(self, project, submissionId, username, status, language, extension, code, datatime):
         # Save Code
-        status = "".join([word.upper() for word in status if word.strip()])
+        f = open(self.save_path + 'code3.csv','a', newline='')
+        wr = csv.writer(f)
+        
         if status in ["AC"]:
             result = "correct"
         elif status in ["WA", "PAC"]:
             result = "wrong"
         else:
             result = "error"
-        dir_path = os.path.join(self.save_path, project, result)
-        file_path = dir_path+'/'+str(submissionId)+'&'+status+'&'+str(username)+extension
-        # print(file_path)
-        self.save(dir_path, file_path, code)
+        wr.writerow([project, submissionId, username, result, language, extension, code, datatime])
+        
+        f.close()
+        
+    def save(self, file_path, data):
+        if not os.path.isdir(self.save_path):
+            os.makedirs(self.save_path)  
+        data.to_csv(self.save_path+file_path, index = False)
     
-    def save_datatime(self, project):
-        # Save DateTime
-        times = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-        dir_path = os.path.join(self.save_path, project)
-        file_path = dir_path+"/saved_date_time.txt"
-        self.save(dir_path, file_path, times)
-        
-    def save(self, dir_path, file_path, data):
-        if not os.path.isdir(dir_path):
-            os.makedirs(dir_path)
-        with open(file_path, 'w') as w:
-            w.write(data.strip())
-
-    def save_data(self, project, title, tags, problem, input_tc, output_tc, submission_map):
-        self.save_problem(project, problem, title, tags)
-        self.save_testcase(project, input_tc, output_tc)
-        for submissionId, (status, username, code, extension) in tqdm(submission_map.items(), desc='Save'):
-            self.save_code(project, submissionId, status, username, code, extension)
-        self.save_datatime(project)
-
-    def run_one(self, project, language="LANGUAGE", status="STATUS"):
-        logger.info('\n'+project)
-        print('\n'+project)
-        self.set_language(language)
-        self.set_status(status)
-        title, tags, problem, input_tc, output_tc = self.get_project_info(project)
-        submission_map = self.get_submission_list(project)
-        return title, tags, problem, input_tc, output_tc, submission_map
-        
-    def run(self, language="LANGUAGE", status="STATUS"):
+    def run_project(self):
         project_list = self.get_project_list()
-        for project in reversed(project_list):
-            if os.path.isdir(self.save_path+project):
-                continue
-            title, tags, problem, input_tc, output_tc, submission_map = self.run_one(project, language, status)
-            # print(submission_map)
-            if submission_map:
-                self.save_data(project, title, tags, problem, input_tc, output_tc, submission_map)
+        self.save_project(project_list)
+        
+    def run_problem(self):
+        # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[1886:]
+        for project in tqdm(project_list, desc='Save Problem'):
+            title, tags, problem, input_tc, output_tc = self.get_project_info(project)
+            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
 
+            self.save_problem(project, title, problem, tags, input_tc, output_tc,  datatime)
+            
+    def run_code(self, language):
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        submission_map = {}
+        self.set_language(language)
+        
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[70:]
+        for project in tqdm(project_list, desc='Save Code'):
+            submission_id_list = self.get_submission_id_list(project)
+            for sub_id in  tqdm(submission_id_list, desc='Save Submission'):
+                code_url = self.url + 'viewsolution/' + sub_id
+                print(code_url)
+                driver.get(code_url)
+                time.sleep(3)
+                
+                try:   
+                    # Get status, username, code, extension, language
+                    username = self.get_username(driver)
+                    status = self.get_status(driver)
+                    language, extension = self.get_extension(driver)
+                    code = self.get_code(code_url)
+
+                except:
+                    print("Submission Error")
+                
+                ## retry
+                if username == '':
+                    username = self.get_username(driver)
+                if status == '':
+                    status = self.get_status(driver)
+                if language == '' or extension == '':
+                    language, extension = self.get_extension(driver)
+                if code == '':
+                    code = self.get_code(code_url)
+                    
+                if status and username and code and language and extension:
+                    submission_map[sub_id] = [username, status, language, extension, code]
+                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                    self.save_code(project, sub_id, username, status, language, extension, code, datatime)
+            
+        driver.quit()
+        # print(submission_map)
+        return submission_map
+    
+    def get_csv(self, file_path):
+        ## Get CSV file
+        csv_mapping_list = []
+        with open(file_path, 'rt', encoding='UTF8') as my_data:
+            csv_reader = csv.reader(my_data, delimiter=",")
+            line_count = 0
+            for line in csv_reader:
+                if line_count == 0:
+                    header = line
+                else:
+                    row_dict = {key: value for key, value in zip(header, line)}
+                    csv_mapping_list.append(row_dict)
+                line_count += 1
+        # return csv_mapping_list[58:]
+        return csv_mapping_list
 
 if __name__ == '__main__':
     compete = 'UAPRAC' # Default is 'None'
     project = 'SEAFUNC'
-    language = 'PYTH 3' # Default is 'Language'
-    status = '' # Default is 'ALL'
+    language = 'python' # Default is 'Language'
+    status = '' # Default is ''
 
     save_path = 'codechefData/'
     
     # Run CodeChefCrawler with save_path
     ccc = CodeChefCrawler(save_path)
-
-    # Update If URL is in Compete
-    # ccc.update_url(compete)
-
-    # Run All Project
-    # ccc.run(language, status)
-
-    # proj_list = ['SEAFUNC', 'ENODE_EASY', 'ENODE_HARD', 'PANSTACK', 'XOREQUAL', 'SHUTTLE', 'MUSICHAIR', 'MCHAIRS', 'CHEFLCM']
-    # lang_list = ['PYPY3', 'PYTH 3']
-    # for project in proj_list:
-    #     for language in lang_list:
-    #         # Run Only One Project  
-    #         title, tags, problem, input_tc, output_tc, submission_map = ccc.run_one(project, language, status)
-    #         ccc.save_data(project, title, tags, problem, input_tc, output_tc, submission_map)
+    ## First: Save project
+    # ccc.run_project()
     
-    title, tags, problem, input_tc, output_tc, submission_map = ccc.run_one('SEAFUNC', 'PYTH 3', status)
-    ccc.save_data('SEAFUNC', title, tags, problem, input_tc, output_tc, submission_map)
+    ## Second: Save problem
+    # ccc.run_problem()
+    
+    ## Third: Save code
+    ccc.run_code(language)
         

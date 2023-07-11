@@ -5,6 +5,9 @@ import os
 import warnings
 from tqdm import tqdm
 import logging
+import csv
+from csv import writer
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -37,6 +40,7 @@ logger.addHandler(file_handler)
 
 
 class CodeForcesCrawler:
+    language = ['Python 2', 'Python 3', 'PyPy 2', 'PyPy 3', 'PyPy 3-64']
     
     def __init__(self, save_path):
         self.url = "https://codeforces.com/"
@@ -93,6 +97,16 @@ class CodeForcesCrawler:
         
         return extension
 
+    def set_language(self, language):
+        language = "".join([word.upper() for word in language if word.strip()])
+        if language == 'PYTHON':
+            self.language = ['Python 2', 'Python 3', 'PyPy 2', 'PyPy 3', 'PyPy 3-64']
+        elif language == 'C++':
+            self.language = ['C++17', 'C++14']
+        elif language == 'C':
+            self.language = ['C']
+        elif language == 'JAVA':
+            self.language = ['JAVA']
         
     def __wait_until_find(self, driver, xpath):
         WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, xpath)))
@@ -104,30 +118,27 @@ class CodeForcesCrawler:
         button = driver.find_element(By.XPATH, xpath)
         driver.execute_script("arguments[0].click();", button)
 
-    def get_contest_list(self, driver):
+    def get_contest_list(self):
         contest_list = []
-
-        # page_url = self.mirror_url + 'api/contest.status?contestId=' + project + '&count=500' # just 10
-        # print("API: " + page_url)
-
-        # response = requests.get(page_url)
-        # results = response.json()['result']
-        # for result in tqdm(results):
-        #     if result['programmingLanguage'] in ['Python 3', 'PyPy 3'] \
-        #         and result['problem']['name'] == 'Merge Sort' \
-        #         and result['verdict'] in ['OK', 'WRONG_ANSWER']:
-        #         id_verdict_map[result['id']] = result['verdict']
         
+        contest_api = self.url + 'api/contest.list'
+        res = requests.get(contest_api)
+        results = res.json()['result']
+        
+        for result in tqdm(results, desc="CONTEST"):
+            contest_list.append(str(result['id']))
+            
+        # print(contest_list)
         return contest_list
     
     def get_problem_code_list(self, contest):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-        
-        problem_list = {}
+        problem_code_list = []
         
         problem_url = self.contest_url + contest
         driver.get(problem_url)
-        time.sleep(1)
+        print(problem_url)
+        time.sleep(10)
 
         problem_xpath = '//*[@id="pageContent"]/div[2]/div[6]/table/tbody'
         
@@ -135,20 +146,18 @@ class CodeForcesCrawler:
             pb_list = self.__wait_until_find(driver, problem_xpath)
             children = pb_list.find_elements(By.XPATH, "./child::*")
             cnt = 0
-            tmp_list = []
             for elem in children:
                 if cnt == 0:
                     cnt += 1
                     continue
                 
                 # tmp_list.append(contest + elem.text.split('\n')[0])
-                tmp_list.append(elem.text.split('\n')[0])
+                problem_code_list.append(elem.text.split('\n')[0])
             ## ex. contest: 1842 problem: A
-            problem_list[contest] = tmp_list
         except:
-            print("Problem Error")
+            print("No contest")
         
-        return problem_list
+        return problem_code_list
     
     def get_problem_info(self, contest, problem_code):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
@@ -156,7 +165,7 @@ class CodeForcesCrawler:
         problem_url = self.contest_url + contest + "/problem/" + problem_code
         
         driver.get(problem_url)
-        time.sleep(1)
+        time.sleep(2)
         print(problem_url)
         
         title = self.get_title(driver)
@@ -164,88 +173,58 @@ class CodeForcesCrawler:
         problem = self.get_problem(driver)
         input_tc, output_tc = self.get_testcase(problem_url)
         
-        if not title:
-            logger.info('No Title')
-        if not tags:
-            logger.info('No Tags')
-        if not problem:
-            logger.info('No Problem')
-        if not input_tc or not output_tc:
-            logger.info('No Testcase')
+        ## retry
+        if title == '':
+            title = self.get_title(driver)
+        if tags == []:
+            tags = self.get_tags(driver)
+        if problem == '':
+            problem = self.get_problem(driver)
+        if input_tc == '' or output_tc == '':
+            input_tc, output_tc = self.get_testcase(problem_url)
 
         driver.quit()
         
         return title, tags, problem, input_tc, output_tc
         
-    def get_submission_url_list(self, contest, language, title):
+    def get_submission_url_list(self, contest, title):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         
-        submission_url_list = {}
-        last_page = 0
+        submission_url_list = []
         
         status_url = self.url + "contest/" + contest + '/status'
         driver.get(status_url)
-        time.sleep(1)
+        time.sleep(3)
         
-        try:
-            ## Filter
-            tag = self.__wait_until_find(driver, '//*[@id="sidebar"]/div[4]/div[2]/form/div[2]/input[1]')
-            action = ActionChains(driver)
-            action.move_to_element(tag).perform()
-            
-            # Filter problem
-            select=driver.find_element(By.XPATH, '//*[@id="frameProblemIndex"]')
-            select.send_keys(title)
-            
-            # Filter language
-            select=driver.find_element(By.XPATH, '//*[@id="programTypeForInvoker"]')
-            select.send_keys(language)
-            
-            self.__wait_and_click(driver, '//*[@id="sidebar"]/div[4]/div[2]/form/div[2]/input[1]')
-        except:
-            print("Submission Filter Error")
-            time.sleep(100)
-        
-        try:
-            ## Get Last Page
-            tag = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[8]/div/ul')
-            action = ActionChains(driver)
-            action.move_to_element(tag).perform()
-            
-            children = tag.find_elements(By.XPATH, './child::*')
-            
-            for i in range(len(children)):
-                if i == len(children)-2:
-                    last_page = int(children[i].text)
-            
-            # print("last_page: " + str(last_page))
-        except:
-            last_page = 1
-            # print("Get Last Page Error")
+        for lang in self.language:
+            try:
+                ## Filter
+                tag = self.__wait_until_find(driver, '//*[@id="sidebar"]/div[4]/div[2]/form/div[2]/input[1]')
+                action = ActionChains(driver)
+                action.move_to_element(tag).perform()
+                
+                # Filter problem
+                select=driver.find_element(By.XPATH, '//*[@id="frameProblemIndex"]')
+                select.send_keys(title)
+                
+                # Filter language
+                select=driver.find_element(By.XPATH, '//*[@id="programTypeForInvoker"]')
+                select.send_keys(lang)
+                
+                self.__wait_and_click(driver, '//*[@id="sidebar"]/div[4]/div[2]/form/div[2]/input[1]')
+            except:
+                print("Submission Filter Error")
 
-        ## Get submission url
-        tmp_list = []
-        for j in tqdm(range(1, last_page+1), desc='Submission URL'): 
-            for i in range (2, 52):
+            ## Get submission url
+            for i in tqdm(range(2, 27), desc="Submissions"):
                 try:
                     url = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[' + str(i) + ']/td[1]/a')
                     
                     # print("url: " + url.text)
-                    tmp_list.append(url.text)
+                    submission_url_list.append(url.text)
                 except:
                     # print("End Submissions")
                     break
-                
-            try:
-                page_list = self.__wait_until_find(driver, '//*[@id="pageContent"]/div[8]/div/ul')
-                next_btn = page_list.find_element(By.XPATH, './child::li/a[contains(text(), \'→\')]')
-    
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable(next_btn))
-                driver.execute_script("arguments[0].click();", next_btn)
-                
-            except:
-                continue
-        submission_url_list[contest] = tmp_list
         # print(submission_url_list)
         
         return submission_url_list
@@ -349,7 +328,7 @@ class CodeForcesCrawler:
         except:
             print("Extension Fail")
             pass 
-        return extension
+        return language, extension
     
     def get_code(self, driver):
         code = ''
@@ -374,118 +353,129 @@ class CodeForcesCrawler:
             pass 
 
         return problem_code
-        
-    def get_submission_list(self, contest, submission_url_list):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-        submission_list = {}
-        
-        # print(submission_url_list)
-        
-        for submissionId in tqdm(submission_url_list[contest], desc='Sumission'):
-            # DO NOT USE MIRROR URL!
-            submission_url = self.contest_url + contest + "/submission/" + submissionId
-            
-            try:
-                driver.get(submission_url)
-                print(submission_url)
-                time.sleep(3)
-                
-                ## Get status, username, code, extension
-                username = self.get_username(driver)
-                status = self.get_status(driver)
-                extension = self.get_extension(driver)
-                code = self.get_code(driver)
-            # problem_code = self.get_problem_code(driver)
-            except:
-                ## do again
-                print("Submission Crawl Error")
-            
-            if status and username and code and extension:
-                submission_list[submissionId] = [status, username, code, extension]
-        
-        return submission_list
     
-    def save_problem(self, contest, problem_code, problem, title, tags):
+    def save_contest(self, contest, problem_code_list, datatime):
+        f = open(self.save_path + 'contest2.csv','a', newline='')
+        wr = csv.writer(f)
+        
+        for problem_code in problem_code_list:
+            wr.writerow([contest, problem_code, datatime])
+        
+        f.close()
+    
+    def save_problem(self, contest, problem_code, title, problem, tags, input_tc, output_tc, datatime):
         # Save Problem
-        dir_path = os.path.join(self.save_path, contest, problem_code)
-        file_path = dir_path+"/problem.txt"
-        describtion = 'Title: %s\nProblem:\n%s\nTags:%s' %(title, problem, tags) 
-        self.save(dir_path, file_path, describtion)
-
-    def save_testcase(self, contest, problem_code, input_tc, output_tc):
-        # Save Testcase
-        dir_path = os.path.join(self.save_path, contest, problem_code, 'testcases')
-        file_path = dir_path+"/input_001.txt"
-        self.save(dir_path, file_path, input_tc)
-        file_path = dir_path+"/output_001.txt"
-        self.save(dir_path, file_path, output_tc)
+        f = open(self.save_path + 'problem.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([contest, problem_code, title, problem, tags, input_tc, output_tc, datatime])
+        
+        f.close()
     
-    def save_code(self, contest, problem_code, submissionId, status, username, code, extension):
+    def save_code(self, contest, problem_code, submissionId, username, status, language, extension, code, datatime):
         # Save Code
-        status = "".join([word.upper() for word in status if word.strip()])
+        f = open(self.save_path + 'code.csv','a', newline='')
+        wr = csv.writer(f)
+        
         if status in ["AC"]:
             result = "correct"
         elif status in ["WA", "PAC"]:
             result = "wrong"
         else:
             result = "error"
-            
-        dir_path = os.path.join(self.save_path, contest, problem_code, result)
-        file_path = dir_path+'/'+str(submissionId)+'&'+status+'&'+str(username)+extension
-        self.save(dir_path, file_path, code)
+        wr.writerow([contest, problem_code, submissionId, username, result, language, extension, code, datatime])
+        
+        f.close()
     
-    def save_datatime(self, contest, problem_code):
-        # Save DateTime
-        times = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-        dir_path = os.path.join(self.save_path, contest, problem_code)
-        file_path = dir_path+"/saved_date_time.txt"
-        self.save(dir_path, file_path, times)
+    def save(self, file_path, data):
+        if not os.path.isdir(self.save_path):
+            os.makedirs(self.save_path)
+        data.to_csv(self.save_path+file_path, index = False)
+    
+    def run_contest(self):
+        contest_list = self.get_contest_list()[166:]
+        for contest in tqdm(contest_list, desc='Save contest'):
+            problem_code_list = self.get_problem_code_list(contest)
+            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+            self.save_contest(contest, problem_code_list, datatime)
+            
+    def run_problem(self):
+        # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
+        contest_list = list(pd.read_csv(self.save_path + 'contest.csv')['contestID'])
+        problem_code_list = list(pd.read_csv(self.save_path + 'contest.csv')['problemID'])
+        for contest, problem_code in tqdm(zip(contest_list, problem_code_list), desc='Save Problem'):
+            title, tags, problem, input_tc, output_tc = self.get_problem_info(str(contest), str(problem_code))
+            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
 
-    def save(self, dir_path, file_path, data):
-        if not os.path.isdir(dir_path):
-            os.makedirs(dir_path)
-        with open(file_path, 'w') as w:
-            w.write(data.strip())
-
-    ## In ONE contest and problem_code
-    def save_data(self, contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list):
-        self.save_problem(contest, problem_code, problem, title, tags)
-        self.save_testcase(contest, problem_code, input_tc, output_tc)
-        for submissionId, (status, username, code, extension) in tqdm(submission_list.items(), desc='Save ONE'):
-            self.save_code(contest, problem_code, submissionId, status, username, code, extension)
-        self.save_datatime(contest, problem_code)
-
-    ## In ONE contest 
-    def run_one(self, contest, language="LANGUAGE"):
-        result = {}
-        print('Get contest problem list...')
-        problem_code_list = self.get_problem_code_list(contest)
-        # print("problem_list: " + str(problem_list))
-        for problem_code in tqdm(problem_code_list[contest], "Contest Problem"):
-            ## In ONE problem
-            print("Get problem info...\n")
-            title, tags, problem, input_tc, output_tc = self.get_problem_info(contest, problem_code)
-            print('Get submission URL...\n')
-            submission_url_list = self.get_submission_url_list(contest, language, title)
-            print('Get submissions...\n')
-            submission_list = self.get_submission_list(contest, submission_url_list)
-            # print("submission_list: " + str(submission_list))
-            result[problem_code] = [title, tags, problem, input_tc, output_tc, submission_list]
-            print('Save...\n')
-            cfc.save_data(contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list)
-        return result
-
+            self.save_problem(contest, problem_code, title, problem, tags, input_tc, output_tc, datatime)
+            
+    def run_code(self, lang):
+        self.set_language(lang)
+        submission_list = {}
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        
+        contest_list = list(pd.read_csv(self.save_path + 'problem_tmp.csv')['contestID'])
+        problem_code_list = list(pd.read_csv(self.save_path + 'problem_tmp.csv')['problemID'])
+        title_list = list(pd.read_csv(self.save_path + 'problem_tmp.csv')['title'])
+        
+        for contest, title, problem_code in tqdm(zip(contest_list, title_list, problem_code_list), desc='Save Code'):
+            submission_url_list = self.get_submission_url_list(str(contest), str(title))
+            for submissionId in tqdm(submission_url_list, desc='Submission'):
+                # DO NOT USE MIRROR URL!
+                submission_url = self.contest_url + str(contest) + "/submission/" + str(submissionId)
+                
+                try:
+                    driver.get(submission_url)
+                    print(submission_url)
+                    time.sleep(3)
+                    
+                    ## Get status, username, code, extension
+                    username = self.get_username(driver)
+                    status = self.get_status(driver)
+                    language, extension = self.get_extension(driver)
+                    code = self.get_code(driver)
+                # problem_code = self.get_problem_code(driver)
+                except:
+                    ## do again
+                    print("Submission Crawl Error")
+                
+                ## retry
+                if username == '':
+                    username = self.get_username(driver)
+                if status == '':
+                    status = self.get_status(driver)
+                if language == '' or extension == '':
+                    language, extension = self.get_extension(driver)
+                if code == '':
+                    code =self.get_code(driver)
+                
+                if status and username and code and language and extension:
+                    # submission_url_list[int(submissionId)] = [username, status, language, extension, code]
+                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                    self.save_code(contest, problem_code, submissionId, username, status, language, extension, code, datatime)
+        
+        # return submission_list
 
 if __name__ == '__main__':
-    language = 'Python 3'
+    language = 'python'
     contest = '1842'
-    save_path = 'codeforceData/'
+    save_path = 'codeforcesData/'
     
     # Run CodeForcesCrawler with save_path
     cfc = CodeForcesCrawler(save_path)
     
+    # First: Save contest
+    # cfc.run_contest()
+    
+    # Second: Save problem
+    # cfc.run_problem()
+    
+    # Third: Save code
+    cfc.run_code(language)
+    
+    # cfc.get_contest_list()
+    
     ## Run Only ONE Contest
-    result = cfc.run_one(contest, language)
+    # result = cfc.run_one(contest, language)
     
     # for problem_code, (title, tags, problem, input_tc, output_tc, submission_list) in tqdm(result.items(), desc="Save"):
     #     cfc.save_data(contest, problem_code, title, tags, problem, input_tc, output_tc, submission_list)
