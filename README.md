@@ -3,6 +3,8 @@
 
 ## Dataset
 > In real stored data, it contains many line breaks
+
+**수집된 데이터는 private repo 에 따로 저장**
 ### Codechef
 
 `project.csv`
