@@ -382,25 +382,23 @@ class CodeChefCrawler:
         
         try: 
             problem_statement = self.__wait_until_find(driver, problem_xpath)
-            
+            children = problem_statement.find_elements(By.XPATH, './child::*')
+
+            for elem in children:
+                tag = elem.tag_name
+                text = elem.text
+                if tag in ['h2', 'h3']:
+                    if text != 'Problem':
+                        if not problem:
+                            continue
+                        break
+                elif tag in ['li']:
+                    problem += "\n - " + text.replace('\n', ' ')
+                else:
+                    problem += text.replace('\n', ' ')
         except: 
             print("Problem Fail")
             pass
-        
-        children = problem_statement.find_elements(By.XPATH, './child::*')
-
-        for elem in children:
-            tag = elem.tag_name
-            text = elem.text
-            if tag in ['h2', 'h3']:
-                if text != 'Problem':
-                    if not problem:
-                        continue
-                    break
-            elif tag in ['li']:
-                problem += "\n - " + text.replace('\n', ' ')
-            else:
-                problem += text.replace('\n', ' ')
 
         return problem.replace(".", ".\n")
 
@@ -541,12 +539,63 @@ class CodeChefCrawler:
         driver.quit()        
         
         return submission_id_list
-                
-    def run_code(self):
+
+    def save_project(self, project_list):
+        df = pd.DataFrame(project_list, columns = ['projectID'])
+        time_list = []
+        for i in range(len(project_list)):
+            time_list.append(time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime()))
+        df['datatime'] = time_list
+        
+        self.save("project.csv", df)
+        
+    def save_problem(self, project, title, problem, tags, input_tc, output_tc, datatime):
+        # Save Problem
+        f = open(self.save_path + 'problem4.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([project, title, problem, tags, input_tc, output_tc, datatime])
+        
+        f.close()
+    
+    def save_code(self, project, submissionId, username, status, language, extension, code, datatime):
+        # Save Code
+        f = open(self.save_path + 'code3.csv','a', newline='')
+        wr = csv.writer(f)
+        
+        if status in ["AC"]:
+            result = "correct"
+        elif status in ["WA", "PAC"]:
+            result = "wrong"
+        else:
+            result = "error"
+        wr.writerow([project, submissionId, username, result, language, extension, code, datatime])
+        
+        f.close()
+        
+    def save(self, file_path, data):
+        if not os.path.isdir(self.save_path):
+            os.makedirs(self.save_path)  
+        data.to_csv(self.save_path+file_path, index = False)
+    
+    def run_project(self):
+        project_list = self.get_project_list()
+        self.save_project(project_list)
+        
+    def run_problem(self):
+        # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[1886:]
+        for project in tqdm(project_list, desc='Save Problem'):
+            title, tags, problem, input_tc, output_tc = self.get_project_info(project)
+            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+
+            self.save_problem(project, title, problem, tags, input_tc, output_tc,  datatime)
+            
+    def run_code(self, language):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         submission_map = {}
+        self.set_language(language)
         
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[70:]
         for project in tqdm(project_list, desc='Save Code'):
             submission_id_list = self.get_submission_id_list(project)
             for sub_id in  tqdm(submission_id_list, desc='Save Submission'):
@@ -583,52 +632,7 @@ class CodeChefCrawler:
         driver.quit()
         # print(submission_map)
         return submission_map
-
-    def save_project(self, project_list):
-        df = pd.DataFrame(project_list, columns = ['projectID'])
-        time_list = []
-        for i in range(len(project_list)):
-            time_list.append(time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime()))
-        df['datatime'] = time_list
-        
-        self.save("project.csv", df)
-        
-    def save_problem(self, project, title, problem, tags, input_tc, output_tc, datatime):
-        # Save Problem
-        
-        f = open(self.save_path + 'problem2.csv','a', newline='')
-        wr = csv.writer(f)
-        wr.writerow([project, title, problem, tags, input_tc, output_tc, datatime])
-        
-        f.close()
     
-    def save_code(self, project, submissionId, username, status, language, extension, code, datatime):
-        # Save Code
-        f = open(self.save_path + 'code.csv','a', newline='')
-        wr = csv.writer(f)
-        wr.writerow([project, submissionId, username, status, language, extension, code, datatime])
-        
-        f.close()
-        
-    def save(self, file_path, data):
-        if not os.path.isdir(self.save_path):
-            os.makedirs(self.save_path)  
-        data.to_csv(self.save_path+file_path, index = False)
-    
-    def run_project(self):
-        project_list = self.get_project_list()
-        self.save_project(project_list)
-        
-    def run_problem(self):
-        # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
-        
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])
-        for project in tqdm(project_list, desc='Save Problem'):
-            title, tags, problem, input_tc, output_tc = self.get_project_info(project)
-            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-
-            self.save_problem(project, title, problem, tags, input_tc, output_tc,  datatime)
-
     def get_csv(self, file_path):
         ## Get CSV file
         csv_mapping_list = []
@@ -655,7 +659,6 @@ if __name__ == '__main__':
     
     # Run CodeChefCrawler with save_path
     ccc = CodeChefCrawler(save_path)
-    
     ## First: Save project
     # ccc.run_project()
     
@@ -663,5 +666,5 @@ if __name__ == '__main__':
     # ccc.run_problem()
     
     ## Third: Save code
-    ccc.run_code()
+    ccc.run_code(language)
         
