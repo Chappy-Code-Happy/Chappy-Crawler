@@ -5,7 +5,23 @@
 > In real stored data, it contains many line breaks
 
 **수집된 데이터는 private repo 에 따로 저장**
-### Codechef
+
+### Amount of data
+
+`Codechef`
+|project.csv|problem.csv|code.csv|
+|:---:|:---:|:---:|
+|4265|TBD|TBD|
+|132KB|TBD|TBD|
+
+`Codeforces`
+|contest.csv|problem.csv|code.csv|
+|:---:|:---:|:---:|
+|10515|TBD|TBD|
+|321KB|TBD|TBD|
+
+### Data structure
+#### Codechef
 
 `project.csv`
 |projectID|datatime|
@@ -25,7 +41,7 @@
 |START01|100094959|robiulislamiuj|error|Python3|.py|"#include<stdio.h> int main() {int t; scanf(""%d"",&t); while(t--){   int a;   scanf(""%d"",&a);    printf(""%d\n"",a);  }}"|2023-07-10 09:25:59 PM|
 |START01|100094894|sanjaymanda31|correct|Python3|.py|"# cook your dish here n=int(input()) print(n)"|2023-07-10 09:26:05 PM|
 
-### Codeforces
+#### Codeforces
 
 `contest.csv`
 |contestID|problemID|datatime|
