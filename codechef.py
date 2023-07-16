@@ -467,7 +467,7 @@ class CodeChefCrawler:
         # df['datatime'] = time_list
         
         # self.save("username.csv", df)
-        f = open(self.save_path + 'username2.csv','a', newline='')
+        f = open(self.save_path + 'username3.csv','a', newline='')
         wr = csv.writer(f)
         wr.writerow([username, datatime])
         
@@ -557,20 +557,27 @@ class CodeChefCrawler:
             url = url_a + str(i) + '&sortBy=global_rank'
             
             driver.get(url)
-            time.sleep(3)
+            print(url)
+            time.sleep(10)
             
             for j in range(50):
                 username_xpath = '//*[@id="MUIDataTableBodyRow-' + str(j) + '"]/td[1]/div[2]/a/div/span[2]'
                 try:
-                    time.sleep(0.1)
                     username = self.__wait_until_find(driver, username_xpath).text
                     datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
                     self.save_username(username, datatime)
                     # print(username)
                     # username_list.append(username)
                 except:
-                    print("End")
-                    break
+                    try:
+                        time.sleep(5)
+                        username = self.__wait_until_find(driver, username_xpath).text
+                        datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                        self.save_username(username, datatime)
+                    except:
+                        print("Username Error")
+                        break
+                    
         driver.quit()
         return username_list
     
