@@ -168,16 +168,16 @@ class CodeForcesCrawler:
         time.sleep(2)
         print(problem_url)
         
-        title = self.get_title(driver)
-        tags = self.get_tags(driver)
+        # title = self.get_title(driver)
+        # tags = self.get_tags(driver)
         problem = self.get_problem(driver)
         input_tc, output_tc = self.get_testcase(problem_url)
         
         ## retry
-        if title == '':
-            title = self.get_title(driver)
-        if tags == []:
-            tags = self.get_tags(driver)
+        # if title == '':
+        #     title = self.get_title(driver)
+        # if tags == []:
+        #     tags = self.get_tags(driver)
         if problem == '':
             problem = self.get_problem(driver)
         if input_tc == '' or output_tc == '':
@@ -185,7 +185,7 @@ class CodeForcesCrawler:
 
         driver.quit()
         
-        return title, tags, problem, input_tc, output_tc
+        return problem, input_tc, output_tc
         
     def get_submission_url_list(self, contest, title):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
@@ -267,15 +267,13 @@ class CodeForcesCrawler:
         
         try: 
             problem_statement = self.__wait_until_find(driver, problem_xpath)
-            
+            children = problem_statement.find_elements(By.XPATH, './child::*')
+        
+            for elem in children:
+                problem += elem.text.replace('\n', ' ')
         except: 
             print("Problem Fail")
             pass
-        
-        children = problem_statement.find_elements(By.XPATH, './child::*')
-        
-        for elem in children:
-            problem += elem.text.replace('\n', ' ')
 
         return problem.replace(".", ".\n")
 
@@ -363,11 +361,11 @@ class CodeForcesCrawler:
         
         f.close()
     
-    def save_problem(self, contest, problem_code, title, problem, tags, input_tc, output_tc, datatime):
+    def save_problem(self, contest, problem_code, title, problem, tags, points, difficulty,solvedCount, input_tc, output_tc, datatime):
         # Save Problem
-        f = open(self.save_path + 'problem.csv','a', newline='')
+        f = open(self.save_path + 'problem_new5.csv','a', newline='')
         wr = csv.writer(f)
-        wr.writerow([contest, problem_code, title, problem, tags, input_tc, output_tc, datatime])
+        wr.writerow([contest, problem_code, title, problem, tags, points, difficulty, solvedCount, input_tc, output_tc, datatime])
         
         f.close()
     
@@ -400,13 +398,48 @@ class CodeForcesCrawler:
             
     def run_problem(self):
         # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
-        contest_list = list(pd.read_csv(self.save_path + 'contest.csv')['contestID'])
-        problem_code_list = list(pd.read_csv(self.save_path + 'contest.csv')['problemID'])
-        for contest, problem_code in tqdm(zip(contest_list, problem_code_list), desc='Save Problem'):
-            title, tags, problem, input_tc, output_tc = self.get_problem_info(str(contest), str(problem_code))
+        # contest_list = list(pd.read_csv(self.save_path + 'contest.csv')['contestID'])[3289:]
+        # problem_code_list = list(pd.read_csv(self.save_path + 'contest.csv')['problemID'])[3289:]
+        # for contest, problem_code in tqdm(zip(contest_list, problem_code_list), desc='Save Problem'):
+        #     title, tags, problem, input_tc, output_tc = self.get_problem_info(str(contest), str(problem_code))
+        #     datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+
+        #     self.save_problem(contest, problem_code, title, problem, tags, input_tc, output_tc, datatime)
+        
+        problem_api = self.url + 'api/problemset.problems'
+        
+        res = requests.get(problem_api)
+        results = res.json()['result']['problems']
+        problemStatistics = res.json()['result']['problemStatistics']
+        num = 0
+        for result in results:
+            if result['contestId'] == 514 and result['index'] == "B":
+                break
+            num += 1
+            
+        
+        for result, problemStatistic in tqdm(zip(results[num+1:], problemStatistics[num+1:]), desc="CONTEST"):  
+            if 'contestId' in result.keys():
+                contestID = result['contestId']
+            else:
+                continue
+            if 'index' in result.keys():
+                index = result['index']
+            else:
+                continue
+            if contestID == problemStatistic['contestId'] and index ==  problemStatistic['index']:
+                solvedCount = problemStatistic['solvedCount'] 
+            else:
+                continue
+            
+            rating = result['rating'] if 'rating' in result.keys() else 0
+            points = result['points'] if 'points' in result.keys() else 0
+            
+            problem, input_tc, output_tc = self.get_problem_info(str(contestID), str(index))
             datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
 
-            self.save_problem(contest, problem_code, title, problem, tags, input_tc, output_tc, datatime)
+            self.save_problem(contestID, index, result['name'], problem, result['tags'], points, rating, solvedCount, input_tc, output_tc, datatime)
+        
             
     def run_code(self, lang):
         self.set_language(lang)
@@ -467,10 +500,10 @@ if __name__ == '__main__':
     # cfc.run_contest()
     
     # Second: Save problem
-    # cfc.run_problem()
+    cfc.run_problem()
     
     # Third: Save code
-    cfc.run_code(language)
+    # cfc.run_code(language)
     
     # cfc.get_contest_list()
     

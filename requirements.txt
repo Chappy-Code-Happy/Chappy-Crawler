@@ -5,3 +5,4 @@ pandas
 numpy
 scrapy
 selenium
+webdriver_manager

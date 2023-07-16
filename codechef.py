@@ -8,7 +8,6 @@ import logging
 import csv
 from csv import writer
 import pandas as pd
-import asyncio
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -25,12 +24,12 @@ options = Options()
 user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 options.add_argument('user-agent=' + user_agent)
 ## for background
-options.add_argument("headless")
+# options.add_argument("headless")
 options.add_argument('--window-size=1920, 1080')
 options.add_argument('--no-sandbox')
 options.add_argument("--disable-dev-shm-usage")
-options.add_argument('--start-maximized')
-options.add_argument('--start-fullscreen')
+# options.add_argument('--start-maximized')
+# options.add_argument('--start-fullscreen')
 options.add_argument('--disable-blink-features=AutomationControlled')
 
 # Save log
@@ -50,6 +49,7 @@ class CodeChefCrawler:
         self.practice_url = self.url + "practice"
         self.problem_url = self.url + "problems/"
         self.status_url = self.url + "status/"
+        self.user_url = self.url + "users/"
         
         self.save_path = save_path
     
@@ -64,121 +64,6 @@ class CodeChefCrawler:
         elif language == 'JAVA':
             self.language = ['JAVA']
         ## add
-            
-        # language = "".join([word.upper() for word in language if word.strip()])
-        # if language in ['LANGUAGE', 'ALL']:
-        #     self.language = 'All'
-        # elif language in ['C++17', 'C++']:
-        #     self.language = '63'
-        # elif language in ['PYTH3.6', 'PY3', 'PY36', 'PYTHON3', 'PYTH3']:
-        #     self.language = '116'
-        # elif language == 'JAVA':
-        #     self.language = '10'
-        # elif language == 'C':
-        #     self.language = '11'
-        # elif language == 'C++14':
-        #     self.language = '44'
-        # elif language in ['PYTH', 'PY27', 'PY2', 'PYTHON']:
-        #     self.language = '4'
-        # elif language == 'PYPY3':
-        #     self.language = '109'
-        # elif language == 'C#':
-        #     self.language = '27'
-        # elif language == 'ADA':
-        #     self.language = '7'
-        # elif language == 'PYPY':
-        #     self.language = '99'
-        # elif language == 'TEXT':
-        #     self.language = '62'
-        # elif language == 'PASFPC':
-        #     self.language = '22'
-        # elif language == 'NODEJS':
-        #     self.language = '56'
-        # elif language == 'RUBY':
-        #     self.language = '17'
-        # elif language == 'PHP':
-        #     self.language = '29'
-        # elif language == 'GO':
-        #     self.language = '114'
-        # elif language == 'HASK':
-        #     self.language = '21'
-        # elif language == 'TCL':
-        #     self.language = '38'
-        # elif language == 'KTLN':
-        #     self.language = '47'
-        # elif language == 'PERL':
-        #     self.language = '3'
-        # elif language == 'SCALA':
-        #     self.language = '39'
-        # elif language == 'LUA':
-        #     self.language = '26'
-        # elif language == 'BASH':
-        #     self.language = '28'
-        # elif language == 'JS':
-        #     self.language = '35'
-        # elif language == 'RUST':
-        #     self.language = '93'
-        # elif language == 'LISPSBCL':
-        #     self.language = '31'
-        # elif language == 'PASGPC':
-        #     self.language = '2'
-        # elif language == 'BF':
-        #     self.language = '12'
-        # elif language == 'CLOJ':
-        #     self.language = '111'
-        # elif language == 'R':
-        #     self.language = '117'
-        # elif language == 'D':
-        #     self.language = '20'
-        # elif language == 'CAML':
-        #     self.language = '8'
-        # elif language == 'SWIFT':
-        #     self.language = '85'
-        # elif language == 'FORT':
-        #     self.language = '5'
-        # elif language == 'ASM':
-        #     self.language = '13'
-        # elif language == 'F#':
-        #     self.language = '124'
-        # elif language == 'WSPC':
-        #     self.language = '6'
-        # elif language == 'LISPCLISP':
-        #     self.language = '32'
-        # elif language == 'SQL':
-        #     self.language = '40'
-        # elif language == 'SCMGUILE':
-        #     self.language = '33'
-        # elif language == 'PERL6':
-        #     self.language = '54'
-        # elif language == 'ERL':
-        #     self.language = '36'
-        # elif language == 'CLPS':
-        #     self.language = '14'
-        # elif language == 'PRLG':
-        #     self.language = '15'
-        # elif language == 'SQLQ':
-        #     self.language = '52'
-        # elif language == 'ICK':
-        #     self.language = '9'
-        # elif language == 'NICE':
-        #     self.language = '25'
-        # elif language == 'ICON':
-        #     self.language = '16'
-        # elif language == 'COB':
-        #     self.language = '118'
-        # elif language == 'SCMCHICKEN':
-        #     self.language = '97'
-        # elif language == 'PIKE':
-        #     self.language = '19'
-        # elif language == 'SCMQOBI':
-        #     self.language = '18'
-        # elif language == 'ST':
-        #     self.language = '23'
-        # elif language == 'NEM':
-        #     self.language = '30'
-        # else:
-        #     print("NO Exisiting Language.\nPlease Check Possible Language in CodeChef Language index.")
-        #     exit(0)
     
     def set_extension(self, language):
         language = "".join([word.upper() for word in language if word.strip()])
@@ -247,26 +132,6 @@ class CodeChefCrawler:
 
     def set_status(self, status):
         self.status = status
-        # status = "".join([word.upper() for word in status if word.strip()])
-        # if status in ["STATUS", "ALL"]:
-        #     self.status = "All"
-        # elif status in ["AC(FULL)", "AC", "CORRECT", "ACCEPTED", "CORRECTANSWER"]:
-        #     self.status = "FullAC"
-        # elif status in ["AC(PARTIAL)", "PAC"]:
-        #     self.status = "PartialAC"
-        # elif status in ["WA", "WRONG", "WRONGANSWER"]:
-        #     self.status = "14"
-        # elif status in ["TLE", "TIME", "TIMEOUT", "LIMIT", "EXCEEDED", "TIMELIMITEXCEEDED"]:
-        #     self.status = "13"
-        # elif status in ["RTE", "RUN", "RUNTIME", "RUNTIMEERROR"]:
-        #     self.status = "12"
-        # elif status in ["CTE", "COMPILE", "COMPILATION", "ERROR", "COMPILATIONERROR"]:
-        #     self.status = "11"
-        # elif status == "IE":
-        #     self.status = "20"
-        # else:
-        #     print("NO Exisiting Status.\nPlease Check Possible Status in CodeChef Status index.")
-        #     exit(0)
 
     def trans_status(self, status):
         status = "".join([word.upper() for word in status if word.strip()])
@@ -284,12 +149,12 @@ class CodeChefCrawler:
         self.status_url = self.url + compete + '/status/'
 
     def __wait_until_find(self, driver, xpath):
-        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, xpath)))
+        WebDriverWait(driver, 7).until(EC.presence_of_element_located((By.XPATH, xpath)))
         element = driver.find_element(By.XPATH, xpath)
         return element
             
     def __wait_and_click(self, driver, xpath):
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+        WebDriverWait(driver, 7).until(EC.element_to_be_clickable((By.XPATH, xpath)))
         button = driver.find_element(By.XPATH, xpath)
         driver.execute_script("arguments[0].click();", button)
 
@@ -315,11 +180,6 @@ class CodeChefCrawler:
         action.move_to_element(page_of_page).perform()
         last_page = int(page_of_page.text.split('of')[1].strip())
         jump_page = int(last_page/rows_per_page) + 1
-        
-        # print(last_page)
-        # print(jump_page)
-        
-        # jump_page = 2 # Delete when run
         
         for no in tqdm(range(jump_page), desc='Projects'): # last_page
             page_url = url_a + "page=" + str(no) + "&" + url_b
@@ -402,7 +262,20 @@ class CodeChefCrawler:
 
         return problem.replace(".", ".\n")
 
-    def get_testcase(self, driver, project):
+    def get_difficulty(self, driver):
+        difficulty = ''
+        difficulty_xpath = '//*[@id="root"]/div/div[2]/div/div/div[1]/div[1]/div[1]/div[2]/span[2]'
+        
+        try: 
+            difficulty = self.__wait_until_find(driver, difficulty_xpath).text
+        except: 
+            print("Difficulty Fail")
+            pass
+
+        return difficulty
+    
+    def get_testcase(self, project):
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         input_tc, output_tc = '', ''
 
         page_url = self.url + "problems-old/" + project
@@ -423,6 +296,7 @@ class CodeChefCrawler:
         for in_xpath, out_xpath in zip(input_x_paths, output_x_paths):
             try:
                 if in_xpath == out_xpath:
+                    ## error
                     input_tc, output_tc = self.__wait_until_find(driver, in_xpath).text
                 else:
                     input_tc = self.__wait_until_find(driver, in_xpath).text
@@ -433,6 +307,7 @@ class CodeChefCrawler:
                 input_tc = ''
                 output_tc = ''
         
+        driver.quit()
         return input_tc, output_tc
 
     def get_username(self, driver):
@@ -492,7 +367,8 @@ class CodeChefCrawler:
         title = self.get_title(driver)
         tags = self.get_tags(driver)
         problem = self.get_problem(driver)
-        input_tc, output_tc = self.get_testcase(driver, project)
+        difficulty = self.get_difficulty(driver)
+        input_tc, output_tc = self.get_testcase(project)
 
         ## retry
         if title == '':
@@ -501,12 +377,14 @@ class CodeChefCrawler:
             tags = self.get_tags(driver)
         if problem == '':
             problem = self.get_problem(driver)
+        if difficulty == '':
+            difficulty = self.get_difficulty(driver)
         if input_tc == '' or output_tc == '':
-            input_tc, output_tc = self.get_testcase(driver, project)
+            input_tc, output_tc = self.get_testcase(project)
 
         driver.quit()
         # print(title)
-        return title, tags, problem, input_tc, output_tc
+        return title, tags, problem, difficulty, input_tc, output_tc
 
     def get_submission_id_list(self, project):
 
@@ -539,7 +417,16 @@ class CodeChefCrawler:
         driver.quit()        
         
         return submission_id_list
+    
+    def get_user_info(self, username):
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
+        page_url = self.problem_url + project
+        driver.get(page_url)
+        print(page_url)
+
+        time.sleep(3)
+    
     def save_project(self, project_list):
         df = pd.DataFrame(project_list, columns = ['projectID'])
         time_list = []
@@ -549,11 +436,11 @@ class CodeChefCrawler:
         
         self.save("project.csv", df)
         
-    def save_problem(self, project, title, problem, tags, input_tc, output_tc, datatime):
+    def save_problem(self, project, title, problem, tags, difficulty, input_tc, output_tc, datatime):
         # Save Problem
-        f = open(self.save_path + 'problem4.csv','a', newline='')
+        f = open(self.save_path + 'problem_new4.csv','a', newline='')
         wr = csv.writer(f)
-        wr.writerow([project, title, problem, tags, input_tc, output_tc, datatime])
+        wr.writerow([project, title, problem, tags, difficulty, input_tc, output_tc, datatime])
         
         f.close()
     
@@ -571,7 +458,21 @@ class CodeChefCrawler:
         wr.writerow([project, submissionId, username, result, language, extension, code, datatime])
         
         f.close()
+    
+    def save_username(self, username, datatime):
+        # df = pd.DataFrame(username_list, columns = ['username'])
+        # time_list = []
+        # for i in range(len(username_list)):
+        #     time_list.append(time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime()))
+        # df['datatime'] = time_list
         
+        # self.save("username.csv", df)
+        f = open(self.save_path + 'username2.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([username, datatime])
+        
+        f.close()
+    
     def save(self, file_path, data):
         if not os.path.isdir(self.save_path):
             os.makedirs(self.save_path)  
@@ -583,12 +484,12 @@ class CodeChefCrawler:
         
     def run_problem(self):
         # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[1886:]
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[3408:]
         for project in tqdm(project_list, desc='Save Problem'):
-            title, tags, problem, input_tc, output_tc = self.get_project_info(project)
+            title, tags, problem, difficulty, input_tc, output_tc = self.get_project_info(project)
             datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
 
-            self.save_problem(project, title, problem, tags, input_tc, output_tc,  datatime)
+            self.save_problem(project, title, problem, tags, difficulty, input_tc, output_tc,  datatime)
             
     def run_code(self, language):
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
@@ -633,6 +534,50 @@ class CodeChefCrawler:
         # print(submission_map)
         return submission_map
     
+    def run_username(self):
+            
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        url_a = self.url + 'ratings/all?itemsPerPage=50&order=asc&page='
+        
+        driver.get('https://www.codechef.com/ratings/all?itemsPerPage=50&order=asc&page=1&sortBy=global_rank')
+        time.sleep(3)
+        
+        ## Get last page
+        try:
+            last_page_xpath = '//*[@id="root"]/div/div[3]/div/div/div[2]/div[2]/div[2]/div/table/tfoot/tr/td/div[1]/nav/ul/li[8]/button'
+            last_page = self.__wait_until_find(driver, last_page_xpath)
+            action = ActionChains(driver)
+            action.move_to_element(last_page).perform() # scroll
+            last_page = self.__wait_until_find(driver, last_page_xpath).text
+        except:
+            print("Last Page Fail")
+        
+        username_list = []
+        for i in tqdm(range(1, int(last_page)+1), desc="Username"):
+            url = url_a + str(i) + '&sortBy=global_rank'
+            
+            driver.get(url)
+            time.sleep(3)
+            
+            for j in range(50):
+                username_xpath = '//*[@id="MUIDataTableBodyRow-' + str(j) + '"]/td[1]/div[2]/a/div/span[2]'
+                try:
+                    time.sleep(0.1)
+                    username = self.__wait_until_find(driver, username_xpath).text
+                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                    self.save_username(username, datatime)
+                    # print(username)
+                    # username_list.append(username)
+                except:
+                    print("End")
+                    break
+        driver.quit()
+        return username_list
+    
+    # def run_username(self):
+    #     username_list = self.get_username_list()
+    #     self.save_username(username_list)
+        
     def get_csv(self, file_path):
         ## Get CSV file
         csv_mapping_list = []
@@ -647,8 +592,8 @@ class CodeChefCrawler:
                     csv_mapping_list.append(row_dict)
                 line_count += 1
         # return csv_mapping_list[58:]
-        return csv_mapping_list
-
+        return csv_mapping_list 
+        
 if __name__ == '__main__':
     compete = 'UAPRAC' # Default is 'None'
     project = 'SEAFUNC'
@@ -666,5 +611,8 @@ if __name__ == '__main__':
     # ccc.run_problem()
     
     ## Third: Save code
-    ccc.run_code(language)
+    # ccc.run_code(language)
+    
+    ## Fourth: Save Username
+    ccc.run_username()
         
