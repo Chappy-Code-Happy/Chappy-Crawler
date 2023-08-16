@@ -161,8 +161,7 @@ class CodeChefCrawler:
     def get_project_list(self):
         # Get the project url of all problems
         project_list = []
-
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
 
         rows_per_page = 50
         url_a = self.practice_url + "?"
@@ -275,7 +274,7 @@ class CodeChefCrawler:
         return difficulty
     
     def get_testcase(self, project):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
         input_tc, output_tc = '', ''
 
         page_url = self.url + "problems-old/" + project
@@ -354,9 +353,157 @@ class CodeChefCrawler:
             pass 
 
         return code
+    
+    def get_country(self, driver):
+        country = ''
+        country_xpath = '/html/body/main/div/div/div/div/div/section[1]/ul/li[2]/span/span'
+        try:
+            time.sleep(1) # for prevent null
+            country = self.__wait_until_find(driver, country_xpath).text
+        except: 
+            print("Country Fail")
+            pass 
+        return country
+    
+    def get_rate(self, driver):
+        rate = -1
+        rate_xpath = ' /html/body/main/div/div/div/aside/div[1]/div/div[1]/div[1]'
+        try:
+            rate = int(self.__wait_until_find(driver, rate_xpath).text)
+        except: 
+            print("Rate Fail")
+            pass 
+        return rate
+    
+    def get_global_rank(self, driver):
+        global_rank = -1
+        global_rank_xpath = '/html/body/main/div/div/div/aside/div[1]/div/div[2]/ul/li[1]/a/strong'
+        try:
+            global_rank = int(self.__wait_until_find(driver, global_rank_xpath).text)
+        except: 
+            print("Global Rank Fail")
+            pass 
+        return global_rank
+    
+    def get_country_rank(self, driver):
+        country_rank = -1
+        country_rank_xpath = '/html/body/main/div/div/div/aside/div[1]/div/div[2]/ul/li[2]/a/strong'
+        try:
+            country_rank = int(self.__wait_until_find(driver, country_rank_xpath).text)
+        except: 
+            print("Country Rank Fail")
+            pass 
+        return country_rank
+    
+    def get_correct_num(self, driver):
+        correct_num = -1
         
-    def get_project_info(self, project):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        green = ''
+        # green_path = '//*[@id="highcharts-cgrkbco-49"]/svg/g[2]/g[5]/text''
+        sub_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/rect[1]'
+        green_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[5]/text'
+        try:
+            tag = self.__wait_until_find(driver, sub_path)
+            print(tag.text)
+            print("Test")
+            action = ActionChains(driver)
+            action.move_to_element(tag).perform()
+            # tag.send_keys(Keys.PAGE_DOWN)
+            
+            green = self.__wait_until_find(driver, green_path).text
+            print(green)
+            correct_num = int(green)
+        except: 
+            print("Correct Num Fail")
+            pass
+        return correct_num
+    
+    def get_wrong_num(self, driver):
+        wrong_num = -1
+        yellow = ''
+        red = ''
+        yellow_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[6]/text'
+        red_path = ' /html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[4]/text'
+        try:
+            yellow = self.__wait_until_find(driver, yellow_path).text
+            red = self.__wait_until_find(driver, red_path).text
+            wrong_num = int(yellow) + int(red)
+        except: 
+            print("Wrong Num Fail")
+            pass
+        return wrong_num
+    
+    def get_error_num(self, driver):
+        error_num = -1
+        gray = ''
+        brown = ''
+        orange = ''
+        gray_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[1]/text'
+        brown_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[2]/text'
+        orange_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[3]/text'
+        try:
+            gray = self.__wait_until_find(driver, gray_path).text
+            brown = self.__wait_until_find(driver, brown_path).text
+            orange = self.__wait_until_find(driver, orange_path).text
+            error_num = int(gray) + int(brown) + int(orange)
+        except: 
+            print("Error Num Fail")
+            pass
+        return error_num
+    
+    def get_user_problem_list(self, driver):
+        user_problem_list = {}
+        user_problem_list['correct'] = []
+        user_problem_list['wrong'] = []
+        user_problem_list['error'] = []
+        
+        next_path = '//*[@id="rankContentDiv"]/table/tbody/tr/td[3]/a'
+        last_page_xpath = '//*[@id="loader"]/div'
+        try:
+            last_page = int(self.__wait_until_find(driver, last_page_xpath).text.split('of')[1])
+        except:
+            print("Last Page Fail")
+            return {}
+        
+        for i in tqdm(range(last_page-1), desc='User Problem'):
+            time.sleep(3)
+            for j in range(1, 13):
+                try:
+                    problem_xpath = '//*[@id="rankContentDiv"]/div[1]/table/tbody/tr[' + str(j) + ']/td[2]/a'
+                    status_xpath = '//*[@id="rankContentDiv"]/div[1]/table/tbody/tr[' + str(j) + ']/td[3]/span/img'
+                    submission_xpath = '//*[@id="rankContentDiv"]/div[1]/table/tbody/tr[' + str(j) + ']/td[5]/a'
+                    tag = self.__wait_until_find(driver, problem_xpath)
+                    action = ActionChains(driver)
+                    action.move_to_element(tag).perform()
+                    
+                    problem = self.__wait_until_find(driver, problem_xpath).text
+                    status = self.__wait_until_find(driver, status_xpath).get_attribute('src')
+                    submission = self.__wait_until_find(driver, submission_xpath).get_attribute('href').split('/')[-1]
+                    
+                    print(problem, status, submission)
+                    
+                    if status == 'https://cdn.codechef.com/misc/tick-icon.gif':
+                        status = 'correct'
+                    elif status in ['https://cdn.codechef.com/sites/all/modules/codechef_tags/images/partially-solved.png',
+                                    'https://cdn.codechef.com/misc/cross-icon.gif']:
+                        status = 'wrong'
+                    else:
+                        status = 'error'
+                        
+                    user_problem_list[status].append({'problem': problem, 'submission': submission})
+                except:
+                    print("Problem List Fail")
+                    pass
+            
+            try:
+                self.__wait_and_click(driver, next_path)
+            except:
+                print("Next Page Fail")
+                pass
+        return user_problem_list
+        
+    def get_project_info(self, driver, project):
+        # driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
 
         page_url = self.problem_url + project
         driver.get(page_url)
@@ -382,13 +529,13 @@ class CodeChefCrawler:
         if input_tc == '' or output_tc == '':
             input_tc, output_tc = self.get_testcase(project)
 
-        driver.quit()
+        # driver.close()
         # print(title)
         return title, tags, problem, difficulty, input_tc, output_tc
 
     def get_submission_id_list(self, project):
 
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
         submission_id_list = []
         
         for lang in self.language:
@@ -418,14 +565,46 @@ class CodeChefCrawler:
         
         return submission_id_list
     
-    def get_user_info(self, username):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    def get_user_info(self, driver, username):
+        # driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
 
-        page_url = self.problem_url + project
+        page_url = self.user_url + username
         driver.get(page_url)
         print(page_url)
-
         time.sleep(3)
+        
+        correct_num = 1
+        wrong_num = 2
+        error_num = 3
+        
+        country = self.get_country(driver)
+        rate = self.get_rate(driver)
+        global_rank = self.get_global_rank(driver)
+        country_rank = self.get_country_rank(driver)
+        # correct_num = self.get_correct_num(driver)
+        # wrong_num = self.get_wrong_num(driver)
+        # error_num = self.get_error_num(driver)
+        problem_list = self.get_user_problem_list(driver)
+        
+        ## retry
+        if country == '':
+            country = self.get_country(driver)
+        if rate == -1:
+            rate = self.get_rate(driver)
+        if global_rank == -1:
+            global_rank = self.get_global_rank(driver)
+        if country_rank == -1:
+            country_rank = self.get_country_rank(driver)
+        # if correct_num == -1:
+        #     correct_num = self.get_correct_num(driver)
+        # if wrong_num == -1:
+        #     wrong_num = self.get_wrong_num(driver)
+        # if error_num == -1:
+        #     error_num  = self.get_error_num(driver)
+        if problem_list == {}:
+            problem_list = self.get_user_problem_list(driver)
+        
+        return country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list      
     
     def save_project(self, project_list):
         df = pd.DataFrame(project_list, columns = ['projectID'])
@@ -467,9 +646,16 @@ class CodeChefCrawler:
         # df['datatime'] = time_list
         
         # self.save("username.csv", df)
-        f = open(self.save_path + 'username3.csv','a', newline='')
+        f = open(self.save_path + 'username4.csv','a', newline='')
         wr = csv.writer(f)
         wr.writerow([username, datatime])
+        
+        f.close()
+    
+    def save_user(self, username, country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime):
+        f = open(self.save_path + 'user.csv','a', newline='')
+        wr = csv.writer(f)
+        wr.writerow([username, country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime])
         
         f.close()
     
@@ -483,16 +669,17 @@ class CodeChefCrawler:
         self.save_project(project_list)
         
     def run_problem(self):
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
         # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
         project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[3408:]
         for project in tqdm(project_list, desc='Save Problem'):
-            title, tags, problem, difficulty, input_tc, output_tc = self.get_project_info(project)
+            title, tags, problem, difficulty, input_tc, output_tc = self.get_project_info(driver, project)
             datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
 
             self.save_problem(project, title, problem, tags, difficulty, input_tc, output_tc,  datatime)
             
     def run_code(self, language):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
         submission_map = {}
         self.set_language(language)
         
@@ -536,7 +723,7 @@ class CodeChefCrawler:
     
     def run_username(self):
             
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
         url_a = self.url + 'ratings/all?itemsPerPage=50&order=asc&page='
         
         driver.get('https://www.codechef.com/ratings/all?itemsPerPage=50&order=asc&page=1&sortBy=global_rank')
@@ -553,7 +740,7 @@ class CodeChefCrawler:
             print("Last Page Fail")
         
         username_list = []
-        for i in tqdm(range(1, int(last_page)+1), desc="Username"):
+        for i in tqdm(range(3788, int(last_page)+1), desc="Username"):
             url = url_a + str(i) + '&sortBy=global_rank'
             
             driver.get(url)
@@ -581,10 +768,19 @@ class CodeChefCrawler:
         driver.quit()
         return username_list
     
-    # def run_username(self):
-    #     username_list = self.get_username_list()
-    #     self.save_username(username_list)
-        
+    def run_user(self):
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        username_list = list(pd.read_csv(self.save_path + 'username.csv')['username'])
+        for username in tqdm(username_list, desc='Save User'):
+            try:
+                country, state, city, institution, rating, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list = self.get_user_info(driver, username)
+                datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                self.save_user(username, country, state, city, institution, rating, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime)
+            except:
+                print("User Error")
+                
+        driver.quit()
+    
     def get_csv(self, file_path):
         ## Get CSV file
         csv_mapping_list = []
@@ -621,5 +817,8 @@ if __name__ == '__main__':
     # ccc.run_code(language)
     
     ## Fourth: Save Username
-    ccc.run_username()
+    # ccc.run_username()
+    
+    ## Fifth: Save User
+    ccc.run_user()
         
