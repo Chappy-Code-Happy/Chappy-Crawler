@@ -18,18 +18,17 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import ActionChains
 
-
 warnings.filterwarnings('ignore')
 options = Options()
-user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.5845.96 Safari/537.36"
 options.add_argument('user-agent=' + user_agent)
 ## for background
-# options.add_argument("headless")
+options.add_argument("headless") ## 크롤링 창 보이게 하려면 주석 처리
 options.add_argument('--window-size=1920, 1080')
 options.add_argument('--no-sandbox')
 options.add_argument("--disable-dev-shm-usage")
-# options.add_argument('--start-maximized')
-# options.add_argument('--start-fullscreen')
+options.add_argument('--start-maximized') 
+options.add_argument('--start-fullscreen') ## 전체 화면 없애려면 주석 처리
 options.add_argument('--disable-blink-features=AutomationControlled')
 
 # Save log
@@ -41,7 +40,7 @@ logger.addHandler(file_handler)
 class CodeChefCrawler:
     # Set language and status
     # Default is "All"
-    language = ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY']
+    language = ['PYTH 3', 'PYPY3']
     status = ''
 
     def __init__(self, save_path):
@@ -55,8 +54,10 @@ class CodeChefCrawler:
     
     def set_language(self, language):
         language = "".join([word.upper() for word in language if word.strip()])
-        if language == 'PYTHON':
-            self.language = ['PYTH 3', 'PYPY3', 'PYTH', 'PYPY']
+        if language == 'PYTHON3':
+            self.language = ['PYTH 3', 'PYPY3']
+        elif language == 'PYTHON2':
+            self.language = ['PYTH', 'PYPY']
         elif language == 'C++':
             self.language = ['C++17', 'C++14']
         elif language == 'C':
@@ -161,7 +162,7 @@ class CodeChefCrawler:
     def get_project_list(self):
         # Get the project url of all problems
         project_list = []
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
 
         rows_per_page = 50
         url_a = self.practice_url + "?"
@@ -274,7 +275,7 @@ class CodeChefCrawler:
         return difficulty
     
     def get_testcase(self, project):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
         input_tc, output_tc = '', ''
 
         page_url = self.url + "problems-old/" + project
@@ -399,11 +400,13 @@ class CodeChefCrawler:
         correct_num = -1
         
         green = ''
-        # green_path = '//*[@id="highcharts-cgrkbco-49"]/svg/g[2]/g[5]/text''
-        sub_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/rect[1]'
-        green_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/g[2]/g[5]/text'
+        # green_path = '//*[@id="highcharts-cgrkbco-49"]/svg/g[2]/g[5]/text'
+        # //*[@id="highcharts-vcsdgjq-49"]/svg/g[2]/g[5]/text
+        # sub_path = '/html/body/main/div/div/div/div/div/section[5]/div/div/div/svg/rect[1]'
+        green_path = '//*[@id="highcharts-vcsdgjq-49"]/svg/g[2]/g[5]/text'
         try:
-            tag = self.__wait_until_find(driver, sub_path)
+            # time.sleep(3) # for prevent null
+            tag = self.__wait_until_find(driver, green_path)
             print(tag.text)
             print("Test")
             action = ActionChains(driver)
@@ -466,7 +469,7 @@ class CodeChefCrawler:
             return {}
         
         for i in tqdm(range(last_page-1), desc='User Problem'):
-            time.sleep(3)
+            # time.sleep(3)
             for j in range(1, 13):
                 try:
                     problem_xpath = '//*[@id="rankContentDiv"]/div[1]/table/tbody/tr[' + str(j) + ']/td[2]/a'
@@ -503,7 +506,7 @@ class CodeChefCrawler:
         return user_problem_list
         
     def get_project_info(self, driver, project):
-        # driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        # driver = webdriver.Chrome(service=ChromeService(), options=options)
 
         page_url = self.problem_url + project
         driver.get(page_url)
@@ -533,49 +536,60 @@ class CodeChefCrawler:
         # print(title)
         return title, tags, problem, difficulty, input_tc, output_tc
 
-    def get_submission_id_list(self, project):
+    def get_submission_id_list(self, project, category):
 
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
         submission_id_list = []
         
         for lang in self.language:
             url_a = self.status_url + project + "?"
-            url_b = "limit=100&sort_by=All&sorting_order=asc&language="+lang+"&status="+self.status+"&handle=&Submit=GO"
-            
+            url_b = "page=0&limit=100&sort_by=All&sorting_order=asc&language="+lang+"&status="+category+"&handle=&Submit=GO"
             page_url = url_a + url_b
-            print(page_url)
-            
             driver.get(page_url)
-            time.sleep(1)
-                        
-            for i in tqdm(range(25), desc="Submissions"):
-                sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[1]/div'
-                try:
-                    # Go to Submission code
-                    sub_id = self.__wait_until_find(driver, sub_xpath)
-                    action = ActionChains(driver)
-                    action.move_to_element(sub_id).perform() # scroll
-                    # print(sub_id.text)
-                    submission_id_list.append(sub_id.text)
-                except:
-                    print("End")
-                    break
+            
+            ## 로딩이 오래 걸림
+            time.sleep(8)
+            last_page_xpath = '//*[@id="root"]/div/div[3]/div/div/div[4]/table/tfoot/tr/td/div/div[2]/div/p[2]'
+            try:
+                last_page = int(self.__wait_until_find(driver, last_page_xpath).text.split('of')[1]) // 100 + 1
+            except:
+                print("Last Page Fail")
+                return {}
+            
+            ## 모든 코드를 수집하고 싶을 시, range 를 last_page 로 변경
+            for page in tqdm(range(100), desc="Submissions"):
+                url_b = "page="+str(page)+"&limit=100&sort_by=All&sorting_order=asc&language="+lang+"&status="+self.status+"&handle=&Submit=GO"
+                
+                page_url = url_a + url_b
+                print(page_url)
+                
+                driver.get(page_url)
+                time.sleep(1)
+                            
+                for i in tqdm(range(100)):
+                    sub_xpath = '//*[@id="MUIDataTableBodyRow-' + str(i) + '"]/td[1]/div'
+                    try:
+                        # Go to Submission code
+                        sub_id = self.__wait_until_find(driver, sub_xpath)
+                        action = ActionChains(driver)
+                        action.move_to_element(sub_id).perform() # scroll
+                        # print(sub_id.text)
+                        submission_id_list.append(sub_id.text)
+                    except:
+                        print("End")
+                        break
                 
         driver.quit()        
         
         return submission_id_list
     
     def get_user_info(self, driver, username):
-        # driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        # driver = webdriver.Chrome(service=ChromeService(), options=options)
 
         page_url = self.user_url + username
         driver.get(page_url)
         print(page_url)
         time.sleep(3)
-        
-        correct_num = 1
-        wrong_num = 2
-        error_num = 3
         
         country = self.get_country(driver)
         rate = self.get_rate(driver)
@@ -604,7 +618,8 @@ class CodeChefCrawler:
         if problem_list == {}:
             problem_list = self.get_user_problem_list(driver)
         
-        return country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list      
+        # return country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list
+        return country, rate, global_rank, country_rank, problem_list           
     
     def save_project(self, project_list):
         df = pd.DataFrame(project_list, columns = ['projectID'])
@@ -617,7 +632,7 @@ class CodeChefCrawler:
         
     def save_problem(self, project, title, problem, tags, difficulty, input_tc, output_tc, datatime):
         # Save Problem
-        f = open(self.save_path + 'problem_new4.csv','a', newline='')
+        f = open(self.save_path + 'problem.csv','a', newline='')
         wr = csv.writer(f)
         wr.writerow([project, title, problem, tags, difficulty, input_tc, output_tc, datatime])
         
@@ -625,17 +640,19 @@ class CodeChefCrawler:
     
     def save_code(self, project, submissionId, username, status, language, extension, code, datatime):
         # Save Code
-        f = open(self.save_path + 'code3.csv','a', newline='')
-        wr = csv.writer(f)
-        
         if status in ["AC"]:
             result = "correct"
         elif status in ["WA", "PAC"]:
             result = "wrong"
         else:
             result = "error"
-        wr.writerow([project, submissionId, username, result, language, extension, code, datatime])
+        file_path = self.save_path + 'code/' + project + '/' + result + '/'  + username + '.csv'
         
+        f = open(file_path, 'a', newline='')
+        wr = csv.writer(f)
+        wr.writerow(['project', 'submissionId', 'username', 'result', 'language', 'extension', 'code', 'datatime'])
+        wr.writerow([project, submissionId, username, result, language, extension, code, datatime])
+    
         f.close()
     
     def save_username(self, username, datatime):
@@ -646,16 +663,16 @@ class CodeChefCrawler:
         # df['datatime'] = time_list
         
         # self.save("username.csv", df)
-        f = open(self.save_path + 'username4.csv','a', newline='')
+        f = open(self.save_path + 'username.csv','a', newline='')
         wr = csv.writer(f)
         wr.writerow([username, datatime])
         
         f.close()
     
-    def save_user(self, username, country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime):
+    def save_user(self, username, country, rate, global_rank, country_rank, problem_list, datatime):
         f = open(self.save_path + 'user.csv','a', newline='')
         wr = csv.writer(f)
-        wr.writerow([username, country, rate, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime])
+        wr.writerow([username, country, rate, global_rank, country_rank, problem_list, datatime])
         
         f.close()
     
@@ -669,9 +686,10 @@ class CodeChefCrawler:
         self.save_project(project_list)
         
     def run_problem(self):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
         # title_list, tags_list, problem_list, input_tc_list, output_tc_list, problem_datatime_list = [],[],[],[],[],[]
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[3408:]
+        ## 중간에 끊겼을 시, 다음 프로젝트부터 시작하도록 숫자 변경 (시작해야할 project.csv 라인 - 2)
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[0:]
         for project in tqdm(project_list, desc='Save Problem'):
             title, tags, problem, difficulty, input_tc, output_tc = self.get_project_info(driver, project)
             datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
@@ -679,51 +697,79 @@ class CodeChefCrawler:
             self.save_problem(project, title, problem, tags, difficulty, input_tc, output_tc,  datatime)
             
     def run_code(self, language):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
         submission_map = {}
         self.set_language(language)
-        
-        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[70:]
+        ## 중간에 끊겼을 시, 다음 프로젝트부터 시작하도록 숫자 변경 (시작해야할 project.csv 라인 - 2)
+        project_list = list(pd.read_csv(self.save_path + 'project.csv')['projectID'])[0:]
         for project in tqdm(project_list, desc='Save Code'):
-            submission_id_list = self.get_submission_id_list(project)
-            for sub_id in  tqdm(submission_id_list, desc='Save Submission'):
-                code_url = self.url + 'viewsolution/' + sub_id
-                print(code_url)
-                driver.get(code_url)
-                time.sleep(3)
-                
-                try:   
-                    # Get status, username, code, extension, language
-                    username = self.get_username(driver)
-                    status = self.get_status(driver)
-                    language, extension = self.get_extension(driver)
-                    code = self.get_code(code_url)
-
-                except:
-                    print("Submission Error")
-                
-                ## retry
-                if username == '':
-                    username = self.get_username(driver)
-                if status == '':
-                    status = self.get_status(driver)
-                if language == '' or extension == '':
-                    language, extension = self.get_extension(driver)
-                if code == '':
-                    code = self.get_code(code_url)
-                    
-                if status and username and code and language and extension:
-                    submission_map[sub_id] = [username, status, language, extension, code]
-                    datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-                    self.save_code(project, sub_id, username, status, language, extension, code, datatime)
+            os.makedirs(self.save_path + 'code/' + project + '/correct', exist_ok=True)
+            os.makedirs(self.save_path + 'code/' + project + '/wrong', exist_ok=True)
             
+            for category in ['Correct', 'Wrong Answer']:
+                submission_id_list = self.get_submission_id_list(project, category)
+                for sub_id in  tqdm(submission_id_list, desc='Save Submission'):
+                    code_url = self.url + 'viewsolution/' + sub_id
+                    print(code_url)
+                    driver.get(code_url)
+                    time.sleep(3)
+                    
+                    try:   
+                        # Get status, username, code, extension, language
+                        username = self.get_username(driver)
+                        status = self.get_status(driver)
+                        language, extension = self.get_extension(driver)
+                        code = self.get_code(code_url)
+
+                    except:
+                        print("Submission Error")
+                    
+                    ## retry
+                    if username == '':
+                        username = self.get_username(driver)
+                    if status == '':
+                        status = self.get_status(driver)
+                    if language == '' or extension == '':
+                        language, extension = self.get_extension(driver)
+                    if code == '':
+                        code = self.get_code(code_url)
+                        
+                    if status in ["AC"]:
+                        result = "correct"
+                    elif status in ["WA", "PAC"]:
+                        result = "wrong"
+                    else:
+                        result = "error"
+                        
+                    file_path = self.save_path + 'code/' + project + '/' + result + '/'  + username + '.csv'
+                    dir_path = self.save_path + 'code/' + project + '/' + result + '/'
+            
+                    ## Delete User Duplicate
+                    ## Only Save Correct and Wrong
+                    if os.path.isfile(file_path) == False and result in ['correct', 'wrong']:
+                    # if status and username and code and language and extension:
+                        ## Delete Code Duplicate
+                        dup = False
+                        file_list = os.listdir(dir_path)
+                        for file in file_list:
+                            tmp_code = pd.read_csv(dir_path + file)['code'][0]
+                            # print(tmp_code)
+                            # print(code)
+                            if tmp_code == code:
+                                dup = True
+                                break
+                        # submission_map[sub_id] = [username, status, language, extension, code]
+                        if dup == False:
+                            datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
+                            self.save_code(project, sub_id, username, status, language, extension, code, datatime)
+                
         driver.quit()
         # print(submission_map)
-        return submission_map
+        # return submission_map
     
     def run_username(self):
             
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
         url_a = self.url + 'ratings/all?itemsPerPage=50&order=asc&page='
         
         driver.get('https://www.codechef.com/ratings/all?itemsPerPage=50&order=asc&page=1&sortBy=global_rank')
@@ -769,13 +815,16 @@ class CodeChefCrawler:
         return username_list
     
     def run_user(self):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        # driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
+        driver = webdriver.Chrome(service=ChromeService(), options=options)
         username_list = list(pd.read_csv(self.save_path + 'username.csv')['username'])
         for username in tqdm(username_list, desc='Save User'):
             try:
-                country, state, city, institution, rating, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list = self.get_user_info(driver, username)
+                # country, state, city, institution, rating, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list = self.get_user_info(driver, username)
+                country, state, city, institution, rating, global_rank, country_rank, problem_list = self.get_user_info(driver, username)
                 datatime = time.strftime('%Y-%m-%d %I:%M:%S %p', time.localtime())
-                self.save_user(username, country, state, city, institution, rating, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime)
+                # self.save_user(username, country, state, city, institution, rating, global_rank, country_rank, correct_num, wrong_num, error_num, problem_list, datatime)
+                self.save_user(username, country, state, city, institution, rating, global_rank, country_rank, problem_list, datatime)
             except:
                 print("User Error")
                 
@@ -800,13 +849,14 @@ class CodeChefCrawler:
 if __name__ == '__main__':
     compete = 'UAPRAC' # Default is 'None'
     project = 'SEAFUNC'
-    language = 'python' # Default is 'Language'
+    language = 'python3' # Default is 'Language'
     status = '' # Default is ''
 
     save_path = 'codechefData/'
     
     # Run CodeChefCrawler with save_path
     ccc = CodeChefCrawler(save_path)
+    
     ## First: Save project
     # ccc.run_project()
     
@@ -814,11 +864,11 @@ if __name__ == '__main__':
     # ccc.run_problem()
     
     ## Third: Save code
-    # ccc.run_code(language)
+    ccc.run_code(language)
     
     ## Fourth: Save Username
     # ccc.run_username()
     
     ## Fifth: Save User
-    ccc.run_user()
+    # ccc.run_user()
         
