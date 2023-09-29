@@ -1,8 +1,7 @@
-# Cheppy-Crawler
+# Chappy-Crawler
 2023 산학 심화 R&amp;D 프로젝트: **문제 및 학생 데이터 수집**
 
 ## Dataset
-> In real stored data, it contains many line breaks
 
 **수집된 데이터는 private repo 에 따로 저장**
 
